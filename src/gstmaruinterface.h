@@ -65,6 +65,9 @@ void
 codec_picture_copy (CodecContext *ctx, uint8_t *pict,
                 uint32_t pict_size, CodecDevice *dev);
 
+void
+codec_flush_buffers (CodecContext *ctx, CodecDevice *dev);
+
 GstFlowReturn
 codec_buffer_alloc (GstPad *pad, guint64 offset,
                     guint size, GstCaps *caps, GstBuffer **buf);

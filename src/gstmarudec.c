@@ -231,8 +231,11 @@ gst_marudec_do_qos (GstMaruDec *marudec, GstClockTime timestamp,
 //      if (marudec->waiting_for_key) {
       if (0) {
         res = FALSE;
-      } else {
       }
+#if 0
+      else {
+      }
+#endif
 
       GstClockTime stream_time, jitter;
       GstMessage *qos_msg;
@@ -299,7 +302,7 @@ gst_marudec_drain (GstMaruDec *marudec)
 
   oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
 
-  // TODO: drain
+  CODEC_LOG (DEBUG, "drain frame\n");
 #if 1
   {
     gint have_data, len, try = 0;
@@ -512,12 +515,10 @@ gst_marudec_sink_event (GstPad *pad, GstEvent *event)
     break;
   case GST_EVENT_FLUSH_STOP:
   {
-#if 0
     if (marudec->opened) {
-        // TODO: what does avcodec_flush_buffers do?
-        maru_avcodec_flush_buffers (marudec->context, marudec->dev);
+      codec_flush_buffers (marudec->context, marudec->dev);
     }
-#endif
+
     gst_marudec_reset_ts (marudec);
     gst_marudec_reset_qos (marudec);
 #if 0
@@ -937,18 +938,18 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
     return GST_FLOW_ERROR;
   }
 
-	CODEC_LOG (DEBUG, "outbuf size of decoded video: %d\n", pict_size);
+  CODEC_LOG (DEBUG, "outbuf size of decoded video: %d\n", pict_size);
 
-	if (pict_size < (256 * 1024)) {
-  /* GstPadBufferAllocFunction is mostly overridden by elements that can
-   * provide a hardware buffer in order to avoid additional memcpy operations.
-   */
+  if (pict_size < (256 * 1024)) {
+    /* GstPadBufferAllocFunction is mostly overridden by elements that can
+     * provide a hardware buffer in order to avoid additional memcpy operations.
+     */
     gst_pad_set_bufferalloc_function(
       GST_PAD_PEER(marudec->srcpad),
       (GstPadBufferAllocFunction) codec_buffer_alloc);
-	} else {
-    CODEC_LOG (DEBUG, "request a large size of memory\n");
-	}
+  } else {
+    CODEC_LOG (DEBUG, "request large size of memory. pict_size: %d\n", pict_size);
+  }
 
   ret = gst_pad_alloc_buffer_and_set_caps (marudec->srcpad,
     GST_BUFFER_OFFSET_NONE, pict_size,
@@ -1061,11 +1062,11 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
     codec_decode_video (marudec->context, data, size,
                           dec_info->idx, in_offset, outbuf,
                           &have_data, marudec->dev);
-
+#if 0
+  // skip_frame
   if (!decode) {
-    // skip_frame
   }
-
+#endif
   GST_DEBUG_OBJECT (marudec, "after decode: len %d, have_data %d",
     len, have_data);
 
@@ -1081,8 +1082,14 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
 #endif
 
   if (len < 0 || have_data <= 0) {
+//  if (len < 0) { // have_data <= 0) {
     GST_DEBUG_OBJECT (marudec, "return flow %d, out %p, len %d",
       *ret, *outbuf, len);
+
+    CODEC_LOG (DEBUG,
+      "return flow %d, out %p, len %d, have_data: %d\n",
+      *ret, *outbuf, len, have_data);
+
     return len;
   }
 
@@ -1402,12 +1409,12 @@ gst_marudec_chain (GstPad *pad, GstBuffer *buffer)
 
   discont = GST_BUFFER_IS_DISCONT (buffer);
 
-// FIXME
+  // FIXME
   if (G_UNLIKELY (discont)) {
     GST_DEBUG_OBJECT (marudec, "received DISCONT");
     gst_marudec_drain (marudec);
 //    gst_marudec_flush_pcache (marudec);
-//    maru_avcodec_flush buffers (marudec->context, marudec->dev);
+    codec_flush_buffers (marudec->context, marudec->dev);
     marudec->discont = TRUE;
     gst_marudec_reset_ts (marudec);
   }

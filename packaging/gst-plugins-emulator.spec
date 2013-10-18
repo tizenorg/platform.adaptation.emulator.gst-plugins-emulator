@@ -1,5 +1,5 @@
 Name: gst-plugins-emulator
-Version: 0.1.10
+Version: 0.1.11
 Release: 2 
 Summary: GStreamer Streaming-media framework plug-in for Tizen emulator.
 Group: TO_BE/FILLED_IN

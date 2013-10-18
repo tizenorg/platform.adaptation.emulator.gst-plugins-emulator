@@ -75,13 +75,17 @@ _codec_write_to_qemu (int32_t ctx_index, int32_t api_index,
 {
   CodecIOParams ioparam;
 
+  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
+
   memset(&ioparam, 0, sizeof(ioparam));
   ioparam.api_index = api_index;
   ioparam.ctx_index = ctx_index;
   ioparam.mem_offset = mem_offset;
   if (write (fd, &ioparam, 1) < 0) {
-    fprintf (stderr, "%s, failed to write copy data.\n", __func__);
+    CODEC_LOG (ERR, "failed to write input data\n");
   }
+
+  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 static struct mem_info
@@ -129,7 +133,7 @@ secure_device_mem (guint buf_size)
 static void
 release_device_mem (gpointer start)
 {
-  int ret;	
+  int ret;
   uint32_t offset = start - device_mem;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
@@ -270,6 +274,32 @@ codec_deinit (CodecContext *ctx, CodecDevice *dev)
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
+void
+codec_flush_buffers (CodecContext *ctx, CodecDevice *dev)
+{
+  int fd;
+  void *mmapbuf = NULL;
+
+  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
+
+  fd = dev->fd;
+  if (fd < 0) {
+    GST_ERROR ("failed to get %s fd.\n", CODEC_DEV);
+    return;
+  }
+
+  mmapbuf = dev->buf;
+  if (!mmapbuf) {
+    GST_ERROR ("failed to get mmaped memory address.\n");
+    return;
+  }
+
+  CODEC_LOG (DEBUG, "flush buffers. context index: %d\n", ctx->index);
+  _codec_write_to_qemu (ctx->index, CODEC_FLUSH_BUFFERS, 0, fd);
+
+  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
+}
+
 int
 codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
                     gint idx, gint64 in_offset, GstBuffer **out_buf,
@@ -311,6 +341,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   _codec_decode_video_inbuf (in_buf, in_size, mmapbuf + mem_offset);
 
   dev->mem_info.offset = mem_offset;
+
   _codec_write_to_qemu (ctx->index, CODEC_DECODE_VIDEO, mem_offset, fd);
 
   // after decoding video, no need to get outbuf.
@@ -345,7 +376,6 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 
   CODEC_LOG (DEBUG, "pict_size: %d\n",  pict_size);
 
-//	if (pict_size < MEDIUM_BUFFER) {
   if (pict_size < (SMALL_BUFFER)) {
     dev->mem_info.offset = (uint32_t)pict - (uint32_t)mmapbuf;
     CODEC_LOG (DEBUG, "pict: %p , device_mem: %p\n",  pict, mmapbuf);
@@ -354,17 +384,16 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 
   _codec_write_to_qemu (ctx->index, CODEC_PICTURE_COPY,
                         dev->mem_info.offset, fd);
-//	if (pict_size < MEDIUM_BUFFER) {
   if (pict_size < SMALL_BUFFER) {
     CODEC_LOG (DEBUG,
       "set the mem_offset as outbuf: 0x%x\n",  dev->mem_info.offset);
     ret = ioctl (fd, CODEC_CMD_USE_DEVICE_MEM, &(dev->mem_info.offset));
     if (ret < 0) {
-      // FIXME:
+    // FIXME:
     }
   } else if (pict_size < MEDIUM_BUFFER) {
     uint32_t mem_offset = 0;
-    CODEC_LOG (DEBUG, "require to use medium size of memory\n");
+    CODEC_LOG (DEBUG, "need to use medium size of memory\n");
 
     ret = ioctl (fd, CODEC_CMD_GET_DATA_FROM_MEDIUM_BUFFER, &mem_offset);
     if (ret < 0) {
@@ -376,11 +405,11 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 
     ret = ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
     if (ret < 0) {
-      CODEC_LOG (ERR, "failed release used memory\n");
+      CODEC_LOG (ERR, "failed to release used memory\n");
     }
   } else {
     uint32_t mem_offset = 0;
-    CODEC_LOG (DEBUG, "require to use large size of memory\n");
+    CODEC_LOG (DEBUG, "need to use large size of memory\n");
 
     ret = ioctl (fd, CODEC_CMD_GET_DATA_FROM_LARGE_BUFFER, &mem_offset);
     if (ret < 0) {
@@ -392,7 +421,7 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 
     ret = ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
     if (ret < 0) {
-      CODEC_LOG (ERR, "failed release used memory\n");
+      CODEC_LOG (ERR, "failed to release used memory\n");
     }
   }
 
