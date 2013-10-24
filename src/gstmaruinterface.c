@@ -219,7 +219,6 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   CODEC_LOG (DEBUG,
     "init. ctx: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
 
-//  size = _codec_header (CODEC_INIT, 0, mmapbuf + meta_offset);
   size = 8;
   _codec_init_meta_to (ctx, codec, mmapbuf + meta_offset + size);
 
@@ -227,15 +226,6 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
 
   CODEC_LOG (DEBUG,
     "init. ctx: %d meta_offset = 0x%x, size: %d\n", ctx->index, meta_offset, size);
-
-#if 0
-  if (codec->media_type == AVMEDIA_TYPE_AUDIO) {
-    CODEC_LOG (DEBUG,
-        "opened: %d, audio_sample_fmt: %d\n",
-        *(int *)(mmapbuf + meta_offset + size),
-        *(int *)(mmapbuf + meta_offset + size + 4));
-  }
-#endif
 
   opened =
     _codec_init_meta_from (ctx, codec->media_type, mmapbuf + meta_offset + size);
@@ -327,7 +317,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   ret = ioctl (fd, CODEC_CMD_SECURE_SMALL_BUFFER, &mem_offset);
   if (ret < 0) {
     CODEC_LOG (ERR,
-      "decode_audio. failed to get available memory to write inbuf\n");
+      "decode_video. failed to get available memory to write inbuf\n");
     return -1;
   }
   CODEC_LOG (DEBUG, "decode_video. mem_offset = 0x%x\n", mem_offset);
@@ -335,7 +325,6 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
   CODEC_LOG (DEBUG, "decode_video. meta_offset = 0x%x\n", meta_offset);
 
-//  size = _codec_header (CODEC_DECODE_VIDEO, mem_offset, mmapbuf + meta_offset);
   size = 8;
   _codec_decode_video_meta_to (in_size, idx, in_offset, mmapbuf + meta_offset + size);
   _codec_decode_video_inbuf (in_buf, in_size, mmapbuf + mem_offset);
@@ -458,12 +447,12 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
       "decode_audio. failed to get available memory to write inbuf\n");
     return -1;
   }
-  CODEC_LOG (DEBUG, "decode audio. mem_offset = 0x%x\n", mem_offset);
+//  CODEC_LOG (DEBUG, "decode audio. mem_offset = 0x%x\n", mem_offset);
+  CODEC_LOG (DEBUG, "decode_audio. ctx_id: %d mem_offset = 0x%x\n", ctx->index, mem_offset);
 
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
-  CODEC_LOG (DEBUG, "decode_audio. meta_offset = 0x%x\n", meta_offset);
+  CODEC_LOG (DEBUG, "decode_audio. ctx_id: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
 
-//  size = _codec_header (CODEC_DECODE_AUDIO, mem_offset, mmapbuf + meta_offset);
   size = 8;
   _codec_decode_audio_meta_to (in_size, mmapbuf + meta_offset + size);
   _codec_decode_audio_inbuf (in_buf, in_size, mmapbuf + mem_offset);
@@ -475,12 +464,16 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   if (ret < 0) {
     return -1;
   }
+  CODEC_LOG (DEBUG, "after decode_audio. ctx_id: %d mem_offset = 0x%x\n", ctx->index, mem_offset);
 
   len =
     _codec_decode_audio_meta_from (&ctx->audio, have_data, mmapbuf + meta_offset + size);
   if (len > 0) {
     _codec_decode_audio_outbuf (*have_data, samples, mmapbuf + mem_offset);
+  } else {
+    CODEC_LOG (DEBUG, "decode_audio failure. ctx_id: %d\n", ctx->index);
   }
+
   memset(mmapbuf + mem_offset, 0x00, sizeof(len));
 
   ret = ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
@@ -546,8 +539,6 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
   CODEC_LOG (DEBUG, "encode_video. meta_offset = 0x%x\n", meta_offset);
 
-//  size =
-//    _codec_header (CODEC_ENCODE_VIDEO, mem_offset, mmapbuf + meta_offset);
   size = 8;
   meta_offset += size;
   _codec_encode_video_meta_to (in_size, in_timestamp, mmapbuf + meta_offset);

@@ -1,3 +1,6 @@
+* Thu Oct 24 05:50:49 UTC 2013 Kitae Kim <kt920.kim@samsung.com>
+- A routine to query codec element is called once per a process when loading this plugin.
+
 * Fri Oct 18 02:41:49 UTC 2013 Kitae Kim <kt920.kim@samsung.com>
 - added flush_buffer routine in decoder.
 
