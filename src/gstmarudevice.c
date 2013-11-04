@@ -45,9 +45,13 @@ static GStaticMutex gst_avcodec_mutex = G_STATIC_MUTEX_INIT;
 
 #define CODEC_DEVICE_MEM_SIZE 32 * 1024 * 1024
 
+#if 0
 gpointer device_mem = NULL;
 int device_fd = 0;
 int opened_cnt = 0;
+#endif
+gpointer device_mem;
+int device_fd;
 
 int
 gst_maru_codec_device_open (CodecDevice *dev, int media_type)
@@ -68,8 +72,8 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   dev->mem_info.index = dev->buf_size;
 
   CODEC_LOG (DEBUG, "before mmap. buf_size: %d\n", dev->buf_size);
-
-  g_static_mutex_lock (&gst_avcodec_mutex);
+#if 0
+//  g_static_mutex_lock (&gst_avcodec_mutex);
   if (!device_mem) {
     device_mem = mmap (NULL, CODEC_DEVICE_MEM_SIZE, PROT_READ | PROT_WRITE,
         MAP_SHARED, fd, 0);
@@ -81,11 +85,30 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   }
   dev->buf = device_mem;
   opened_cnt++;
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+//  g_static_mutex_unlock (&gst_avcodec_mutex);
 
   CODEC_LOG (INFO, "succeeded to map device memory: %p.\n", dev->buf);
   dev->fd = fd;
   device_fd = fd;
+#endif
+
+  mmapbuf = mmap (NULL, CODEC_DEVICE_MEM_SIZE, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
+  if (mmapbuf == MAP_FAILED) {
+    perror("Failed to map device memory of codec.");
+    dev->buf = NULL;
+    return -1;
+  }
+
+  CODEC_LOG (INFO, "succeeded to map device memory: %p.\n", mmapbuf);
+  dev->fd = fd;
+  dev->buf = mmapbuf;
+
+  if (media_type == AVMEDIA_TYPE_VIDEO) {
+    device_mem = mmapbuf;
+    device_fd = fd;
+    CODEC_LOG (DEBUG, "video type! mmapbuf: %p fd: %d\n", mmapbuf, fd);
+  }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -106,17 +129,30 @@ gst_maru_codec_device_close (CodecDevice *dev)
     return -1;
   }
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+#if 0
+//  g_static_mutex_lock (&gst_avcodec_mutex);
   if (opened_cnt) {
     if (opened_cnt == 1) {
       CODEC_LOG (INFO, "Release memory region of %p.\n", device_mem);
       if (munmap(device_mem, CODEC_DEVICE_MEM_SIZE) != 0) {
         CODEC_LOG(ERR, "Failed to release memory region of %s.\n", CODEC_DEV);
+        device_mem = NULL;
       }
     }
     opened_cnt--;
   }
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+//  g_static_mutex_unlock (&gst_avcodec_mutex);
+#endif
+  mmapbuf = dev->buf;
+  if (!mmapbuf) {
+    GST_ERROR("Failed to get mmaped memory address.\n");
+    return -1;
+  }
+
+  CODEC_LOG (INFO, "Release memory region of %p.\n", mmapbuf);
+  if (munmap(mmapbuf, CODEC_DEVICE_MEM_SIZE) != 0) {
+    CODEC_LOG(ERR, "Failed to release memory region of %s.\n", CODEC_DEV);
+  }
   dev->buf = NULL;
 
   ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &dev->mem_info.offset);
@@ -138,13 +174,15 @@ gst_maru_avcodec_open (CodecContext *ctx,
 {
   int ret;
 
-//  g_static_mutex_lock (&gst_avcodec_mutex);
+  g_static_mutex_lock (&gst_avcodec_mutex);
+
   if (gst_maru_codec_device_open (dev, codec->media_type) < 0) {
     perror("failed to open device.\n");
+    g_static_mutex_unlock (&gst_avcodec_mutex);
     return -1;
   }
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+//  g_static_mutex_lock (&gst_avcodec_mutex);
   ret = codec_init (ctx, codec, dev);
   g_static_mutex_unlock (&gst_avcodec_mutex);
 
@@ -160,10 +198,10 @@ gst_maru_avcodec_close (CodecContext *ctx, CodecDevice *dev)
 
   g_static_mutex_lock (&gst_avcodec_mutex);
   codec_deinit (ctx, dev);
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+//  g_static_mutex_unlock (&gst_avcodec_mutex);
 
   ret = gst_maru_codec_device_close (dev);
-//  g_static_mutex_unlock (&gst_avcodec_mutex);
+  g_static_mutex_unlock (&gst_avcodec_mutex);
 
   return ret;
 }
