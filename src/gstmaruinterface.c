@@ -113,14 +113,12 @@ secure_device_mem (guint buf_size)
   ret = ioctl (device_fd, cmd, &mem_offset);
   if (ret < 0) {
     CODEC_LOG (ERR, "failed to get available buffer\n");
-    // FIXME:
   } else {
     if (mem_offset == (LARGE_BUFFER * 8)) {
       CODEC_LOG (ERR, "acquired memory is over!!\n");
     } else {
       info.start = (gpointer)((uint32_t)device_mem + mem_offset);
       info.offset = mem_offset;
-
       CODEC_LOG (DEBUG, "acquire device_memory: 0x%x\n", mem_offset);
     }
   }
@@ -169,8 +167,7 @@ codec_buffer_alloc (GstPad *pad, guint64 offset, guint size,
 
   info = secure_device_mem (size);
 
-  CODEC_LOG (DEBUG, "memory start: 0x%p, offset 0x%x\n",
-            info.start, info.offset);
+  CODEC_LOG (DEBUG, "memory start: 0x%p, offset 0x%x\n", info.start, info.offset);
 
   GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = info.start;
   GST_BUFFER_SIZE (*buf) = size;
@@ -367,8 +364,10 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 
   if (pict_size < (SMALL_BUFFER)) {
     dev->mem_info.offset = (uint32_t)pict - (uint32_t)mmapbuf;
-    CODEC_LOG (DEBUG, "pict: %p , device_mem: %p\n",  pict, mmapbuf);
-    CODEC_LOG (DEBUG, "picture_copy, mem_offset = 0x%x\n",  dev->mem_info.offset);
+    CODEC_LOG (DEBUG, "%d of pict: %p , device_mem: %p\n",
+              ctx->index, pict, mmapbuf);
+    CODEC_LOG (DEBUG, "%d of picture_copy, mem_offset = 0x%x\n",
+              ctx->index, dev->mem_info.offset);
   }
 
   _codec_write_to_qemu (ctx->index, CODEC_PICTURE_COPY,
