@@ -88,8 +88,8 @@ static struct mem_info
 secure_device_mem (guint buf_size)
 {
   int ret = 0;
-  uint32_t mem_offset = 0, cmd;
-  struct mem_info info;
+  uint32_t mem_offset = 0, cmd = 0;
+  struct mem_info info = {0, };
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 

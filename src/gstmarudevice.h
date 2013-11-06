@@ -31,11 +31,14 @@
 #ifndef __GST_MARU_DEVICE_H__
 #define __GST_MARU_DEVICE_H__
 
-int gst_emul_codec_device_open (CodecDevice *dev, int media_type);
-int gst_emul_codec_device_close (CodecDevice *dev);
+#include "gstmaru.h"
 
-int gst_emul_avcodec_open (CodecContext *ctx,
+int gst_maru_codec_device_open (CodecDevice *dev, int media_type);
+int gst_maru_codec_device_close (CodecDevice *dev);
+
+int gst_maru_avcodec_open (CodecContext *ctx,
                           CodecElement *codec,
                           CodecDevice *dev);
-int gst_emul_avcodec_close (CodecContext *ctx, CodecDevice *dev);
+int gst_maru_avcodec_close (CodecContext *ctx, CodecDevice *dev);
+
 #endif

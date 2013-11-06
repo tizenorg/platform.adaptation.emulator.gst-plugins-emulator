@@ -219,7 +219,7 @@ gst_maru_codectype_to_audio_caps (CodecContext *ctx, const char *name,
   } else {
     GstCaps *temp;
     int i;
-    CodecContext ctx = { 0 };
+    CodecContext ctx = {{0}, {0}, 0};
 
     ctx.audio.channels = -1;
     caps = gst_caps_new_empty ();
@@ -527,7 +527,6 @@ gst_maru_caps_to_codecname (const GstCaps *caps, gchar *codec_name, CodecContext
 {
   const gchar *mimetype;
   const GstStructure *str;
-  gint wmvversion = 0;
 
   str = gst_caps_get_structure (caps, 0);
 
@@ -561,11 +560,6 @@ gst_maru_caps_to_codecname (const GstCaps *caps, gchar *codec_name, CodecContext
       }
     }
   }
-
-#if 0 // check other types if it needs.
-  } else if () {
-  }
-#endif
 
 #if 0
   if (context != NULL) {

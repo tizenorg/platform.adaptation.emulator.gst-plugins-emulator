@@ -63,10 +63,8 @@ _codec_init_meta_to (CodecContext *ctx,
 
   size = _codec_info_data (codec, device_buf);
 
-  if (codec) {
   CODEC_LOG (INFO, "name: %s, media type: %s\n",
     codec->name, codec->media_type ? "AUDIO" : "VIDEO");
-  }
 
   if (codec->media_type == AVMEDIA_TYPE_AUDIO) {
     CODEC_LOG (DEBUG,

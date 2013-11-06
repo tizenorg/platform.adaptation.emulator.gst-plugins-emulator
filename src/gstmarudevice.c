@@ -63,7 +63,6 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   }
   dev->fd = fd;
 
-//  GST_DEBUG("succeeded to open %s. %d.\n", CODEC_DEV, fd);
   CODEC_LOG (INFO, "succeeded to open %s. %d.\n", CODEC_DEV, fd);
   dev->mem_info.index = dev->buf_size;
 
@@ -76,7 +75,6 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
     return -1;
   }
 
-//  GST_DEBUG("succeeded to map device memory.\n");
   CODEC_LOG (INFO, "succeeded to map device memory: %p.\n", mmapbuf);
   dev->fd = fd;
   dev->buf = mmapbuf;
@@ -86,11 +84,6 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
     device_fd = fd;
     CODEC_LOG (INFO, "video type! mmapbuf: %p fd: %d\n", mmapbuf, fd);
   }
-#if 0
-  else {
-    CODEC_LOG (INFO, "don't need to set device_mem because media type is not video. %d\n", media_type); 
-  }
-#endif
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 

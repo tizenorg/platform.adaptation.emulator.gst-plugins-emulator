@@ -36,6 +36,7 @@
  */
 
 #include "gstmaru.h"
+#include "gstmaruutils.h"
 
 GST_DEBUG_CATEGORY (maru_debug);
 

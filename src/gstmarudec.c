@@ -28,10 +28,11 @@
  *
  */
 
-#include "gstmaru.h"
+// #include "gstmaru.h"
+#include "gstmarudevice.h"
 #include "gstmaruutils.h"
 #include "gstmaruinterface.h"
-#include "gstmarudevice.h"
+// #include "gstmarudevice.h"
 
 #define GST_MARUDEC_PARAMS_QDATA g_quark_from_static_string("marudec-params")
 

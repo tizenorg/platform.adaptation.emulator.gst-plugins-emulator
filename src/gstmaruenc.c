@@ -28,9 +28,9 @@
  *
  */
 
+#include "gstmarudevice.h"
 #include "gstmaruutils.h"
 #include "gstmaruinterface.h"
-#include "gstmarudevice.h"
 #include <gst/base/gstadapter.h>
 
 #define GST_MARUENC_PARAMS_QDATA g_quark_from_static_string("maruenc-params")
@@ -644,8 +644,11 @@ GstFlowReturn
 gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
 {
   GstMaruEnc *maruenc = (GstMaruEnc *) (GST_PAD_PARENT (pad));
-  GstBuffer *outbuf;
-  gint ret_size = 0, frame_size;
+  GstBuffer *outbuf = NULL;
+  gint ret_size = 0, frame_size = 0;
+  int ret = 0;
+  uint32_t mem_offset = 0;
+  uint8_t *working_buf = NULL;
 
   GST_DEBUG_OBJECT (maruenc,
       "Received buffer of time %" GST_TIME_FORMAT,
@@ -707,32 +710,23 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
     }
   }
 #endif
-#if 1
-  {
-    int ret;
-    uint32_t mem_offset;
-    uint8_t *working_buf = NULL;
 
-    mem_offset = maruenc->dev->mem_info.offset;
-    working_buf = maruenc->dev->buf + mem_offset;
-    if (!working_buf) {
-    } else {
-      CODEC_LOG (INFO,
-          "encoded video. mem_offset = 0x%x\n",  mem_offset);
+  mem_offset = maruenc->dev->mem_info.offset;
+  working_buf = maruenc->dev->buf + mem_offset;
 
-      outbuf = gst_buffer_new_and_alloc (ret_size);
-//    memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
-      memcpy (GST_BUFFER_DATA (outbuf), working_buf, ret_size);
-      GST_BUFFER_TIMESTAMP (outbuf) = GST_BUFFER_TIMESTAMP (buffer);
-      GST_BUFFER_DURATION (outbuf) = GST_BUFFER_DURATION (buffer);
-    }
+  CODEC_LOG (DEBUG,
+    "encoded video. mem_offset = 0x%x\n",  mem_offset);
 
-    ret = ioctl(maruenc->dev->fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
-    if (ret < 0) {
-      CODEC_LOG (ERR, "failed to release used buffer\n");
-    }
+  outbuf = gst_buffer_new_and_alloc (ret_size);
+//  memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
+  memcpy (GST_BUFFER_DATA (outbuf), working_buf, ret_size);
+  GST_BUFFER_TIMESTAMP (outbuf) = GST_BUFFER_TIMESTAMP (buffer);
+  GST_BUFFER_DURATION (outbuf) = GST_BUFFER_DURATION (buffer);
+
+  ret = ioctl(maruenc->dev->fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
+  if (ret < 0) {
+    CODEC_LOG (ERR, "failed to release used buffer\n");
   }
-#endif
 
 #if 0
   if (maruenc->context->coded_frame) {
@@ -950,8 +944,10 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
 static void
 gst_maruenc_flush_buffers (GstMaruEnc *maruenc, gboolean send)
 {
+#if 0
   GstBuffer *outbuf, *inbuf;
   gint ret_size = 0;
+#endif
 
   GST_DEBUG_OBJECT (maruenc, "flushing buffers with sending %d", send);
 
