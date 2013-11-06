@@ -168,7 +168,7 @@ plugin_init (GstPlugin *plugin)
 }
 
 #ifndef PACKAGE
-#define PACKAGE "gst-plugins-maruator"
+#define PACKAGE "gst-plugins-emulator"
 #endif
 
 GST_PLUGIN_DEFINE (
@@ -177,7 +177,7 @@ GST_PLUGIN_DEFINE (
   "tizen-emul",
   "Codecs for Tizen Emulator",
   plugin_init,
-  "0.1.1",
+  "0.1.2",
   "LGPL",
   "gst-plugins-emulator",
   "http://tizen.org"

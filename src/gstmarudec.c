@@ -940,16 +940,14 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
 
   CODEC_LOG (DEBUG, "outbuf size of decoded video: %d\n", pict_size);
 
-  if (pict_size < (256 * 1024)) {
-    /* GstPadBufferAllocFunction is mostly overridden by elements that can
-     * provide a hardware buffer in order to avoid additional memcpy operations.
-     */
-    gst_pad_set_bufferalloc_function(
-      GST_PAD_PEER(marudec->srcpad),
-      (GstPadBufferAllocFunction) codec_buffer_alloc);
-  } else {
-    CODEC_LOG (DEBUG, "request large size of memory. pict_size: %d\n", pict_size);
-  }
+#ifndef USE_HEAP_BUFFER
+  /* GstPadBufferAllocFunction is mostly overridden by elements that can
+   * provide a hardware buffer in order to avoid additional memcpy operations.
+   */
+  gst_pad_set_bufferalloc_function(
+    GST_PAD_PEER(marudec->srcpad),
+    (GstPadBufferAllocFunction) codec_buffer_alloc);
+#endif
 
   ret = gst_pad_alloc_buffer_and_set_caps (marudec->srcpad,
     GST_BUFFER_OFFSET_NONE, pict_size,

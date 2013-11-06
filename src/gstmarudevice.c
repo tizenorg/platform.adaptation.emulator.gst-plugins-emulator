@@ -64,6 +64,10 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   }
   dev->fd = fd;
 
+  // FIXME
+  dev->buf_size = CODEC_DEVICE_MEM_SIZE;
+  //
+
   CODEC_LOG (INFO, "succeeded to open %s. %d.\n", CODEC_DEV, fd);
   dev->mem_info.index = dev->buf_size;
 
