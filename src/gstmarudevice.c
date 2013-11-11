@@ -41,7 +41,7 @@
 #include "gstmaruinterface.h"
 #include "gstmarudevice.h"
 
-static GStaticMutex gst_avcodec_mutex = G_STATIC_MUTEX_INIT;
+static GMutex gst_avcodec_mutex;
 
 #define CODEC_DEVICE_MEM_SIZE 32 * 1024 * 1024
 
@@ -53,7 +53,6 @@ int
 gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 {
   int fd;
-  void *mmapbuf;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
@@ -73,18 +72,19 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 
   CODEC_LOG (DEBUG, "before mmap. buf_size: %d\n", dev->buf_size);
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+  g_mutex_lock (&gst_avcodec_mutex);
   if (!device_mem) {
     device_mem = mmap (NULL, CODEC_DEVICE_MEM_SIZE, PROT_READ | PROT_WRITE,
         MAP_SHARED, fd, 0);
     if (device_mem == MAP_FAILED) {
       perror("Failed to map device memory of codec.");
       dev->buf = NULL;
+      g_mutex_unlock (&gst_avcodec_mutex);
       return -1;
     }
   }
   opened_cnt++;
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+  g_mutex_unlock (&gst_avcodec_mutex);
 
   dev->buf = device_mem;
 
@@ -101,7 +101,6 @@ int
 gst_maru_codec_device_close (CodecDevice *dev)
 {
   int fd = 0;
-  void *mmapbuf = NULL;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
@@ -113,7 +112,7 @@ gst_maru_codec_device_close (CodecDevice *dev)
 
   ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &dev->mem_info.offset);
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+  g_mutex_lock (&gst_avcodec_mutex);
   opened_cnt--;
   if (!opened_cnt) {
     CODEC_LOG (INFO, "Release memory region of %p.\n", device_mem);
@@ -123,7 +122,7 @@ gst_maru_codec_device_close (CodecDevice *dev)
     }
   }
   device_mem = NULL;
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+  g_mutex_unlock (&gst_avcodec_mutex);
 
   dev->buf = NULL;
 
@@ -150,9 +149,9 @@ gst_maru_avcodec_open (CodecContext *ctx,
     return -1;
   }
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+  g_mutex_lock (&gst_avcodec_mutex);
   ret = codec_init (ctx, codec, dev);
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+  g_mutex_unlock (&gst_avcodec_mutex);
 
   return ret;
 }
@@ -164,9 +163,9 @@ gst_maru_avcodec_close (CodecContext *ctx, CodecDevice *dev)
 
   CODEC_LOG (DEBUG, "gst_maru_avcodec_close\n");
 
-  g_static_mutex_lock (&gst_avcodec_mutex);
+  g_mutex_lock (&gst_avcodec_mutex);
   codec_deinit (ctx, dev);
-  g_static_mutex_unlock (&gst_avcodec_mutex);
+  g_mutex_unlock (&gst_avcodec_mutex);
 
   ret = gst_maru_codec_device_close (dev);
 
