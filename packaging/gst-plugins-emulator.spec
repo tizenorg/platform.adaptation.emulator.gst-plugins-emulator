@@ -1,21 +1,18 @@
 Name: gst-plugins-emulator
 Version: 0.2.0
 Release: 0
-Summary: GStreamer Streaming-media framework plug-in for Tizen emulator.
-Group: TO_BE/FILLED_IN
-License: LGPLv2+
-URL: http://gstreamer.net/
+Summary: GStreamer Decoder and Encoder Plugins for Emulator
+Group: Multimedia/Libraries
+License: LGPL-2.0+
 Source0: %{name}-%{version}.tar.gz
 Source1001: packaging/%{name}.manifest
-BuildRequires:  gettext
-BuildRequires:  which
-BuildRequires:  gstreamer-tools
-BuildRequires:  gst-plugins-base-devel
 BuildRequires:  pkgconfig(gstreamer-0.10)
+BuildRequires:  pkgconfig(gstreamer-plugins-base-0.10)
 BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(zlib)
 
 %description
+It includes video/audio decoders and encoders for Emulator
+Its codec set is determined after communicating with emulator
 
 %prep
 
@@ -38,9 +35,9 @@ rm -rf %{buildroot}
 %clean
 rm -rf %{buildroot}
 
-%post
+%post -p /sbin/ldconfig
 
-%postun
+%postun -p /sbin/ldconfig
 
 %files
 %manifest gst-plugins-emulator.manifest
