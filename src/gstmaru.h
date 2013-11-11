@@ -65,8 +65,8 @@ enum codec_log_level {
   } while (0)
 
 #define FF_INPUT_BUFFER_PADDING_SIZE  8
-#define FF_MAX_AUDIO_FRAME_SIZE     192000 // 1 second of 48khz 32bit audio
-#define FF_MIN_BUFFER_SIZE        16384
+#define FF_MAX_AUDIO_FRAME_SIZE       192000 // 1 second of 48khz 32bit audio
+#define FF_MIN_BUFFER_SIZE            16384
 
 #define GEN_MASK(x) ((1<<(x))-1)
 #define ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) & ~GEN_MASK(x))

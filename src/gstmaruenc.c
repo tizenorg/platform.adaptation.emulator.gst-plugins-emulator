@@ -802,7 +802,7 @@ static GstFlowReturn
 gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
 {
   GstMaruEnc *maruenc;
-  GstMaruEncClass *oclass;
+//  GstMaruEncClass *oclass;
   GstClockTime timestamp, duration;
   guint in_size, frame_size;
   gint osize;
@@ -813,7 +813,7 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
   CodecContext *ctx;
 
   maruenc = (GstMaruEnc *) (GST_OBJECT_PARENT (pad));
-  oclass = (GstMaruEncClass *) G_OBJECT_GET_CLASS (maruenc);
+//  oclass = (GstMaruEncClass *) G_OBJECT_GET_CLASS (maruenc);
 
   ctx = maruenc->context;
 
