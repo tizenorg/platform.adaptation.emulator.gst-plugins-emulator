@@ -33,7 +33,7 @@
 
 #include "gstmaru.h"
 
-// FFmpeg
+// libav
 #include "audioconvert.h"
 
 /* Audio channel masks */
@@ -106,6 +106,8 @@ GstCaps *gst_maru_pixfmt_to_caps (enum PixelFormat pix_fmt, CodecContext *ctx, c
 GstCaps *gst_maru_smpfmt_to_caps (int8_t sample_fmt, CodecContext *ctx, const char *name);
 
 GstCaps *gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode);
+
+void gst_maru_caps_to_codecname (const GstCaps *caps, gchar *codec_name, CodecContext *context);
 
 void gst_maru_init_pix_fmt_info (void);
 

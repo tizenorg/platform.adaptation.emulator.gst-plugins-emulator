@@ -56,15 +56,15 @@ gboolean gst_maruenc_register (GstPlugin *plugin, GList *element);
 
 static GList *codec_element = NULL;
 static gboolean codec_element_init = FALSE;
-static GStaticMutex gst_maru_mutex = G_STATIC_MUTEX_INIT;
+static GMutex gst_maru_mutex = G_STATIC_MUTEX_INIT;
 
 static gboolean
 gst_maru_codec_element_init ()
 {
-  int fd = 0, size = 0;
+  int fd = 0;
   int version = 0;
-  int data_length = 0;
   int i, elem_cnt = 0;
+  uint32_t data_length = 0;
   void *buffer = NULL;
   CodecElement *elem = NULL;
 
@@ -138,16 +138,16 @@ plugin_init (GstPlugin *plugin)
 
   gst_maru_init_pix_fmt_info ();
 
-  g_static_mutex_lock (&gst_maru_mutex);
+  g_mutex_lock (&gst_maru_mutex);
   if (!codec_element_init) {
     if (!gst_maru_codec_element_init ()) {
-      g_static_mutex_unlock (&gst_maru_mutex);
+      g_mutex_unlock (&gst_maru_mutex);
 
       GST_ERROR ("failed to get codec elements from QEMU");
       return FALSE;
     }
   }
-  g_static_mutex_unlock (&gst_maru_mutex);
+  g_mutex_unlock (&gst_maru_mutex);
 
   if (!gst_marudec_register (plugin, codec_element)) {
     GST_ERROR ("failed to register decoder elements");
