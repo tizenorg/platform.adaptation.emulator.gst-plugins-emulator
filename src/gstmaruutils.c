@@ -523,7 +523,9 @@ gst_maru_caps_with_codecname (const char *name, int media_type,
 }
 
 void
-gst_maru_caps_to_codecname (const GstCaps *caps, gchar *codec_name, CodecContext *context)
+gst_maru_caps_to_codecname (const GstCaps *caps,
+                            gchar *codec_name,
+                            CodecContext *context)
 {
   const gchar *mimetype;
   const GstStructure *str;

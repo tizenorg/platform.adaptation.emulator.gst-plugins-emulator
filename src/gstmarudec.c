@@ -298,12 +298,12 @@ flush_queued (GstMaruDec *marudec)
 static void
 gst_marudec_drain (GstMaruDec *marudec)
 {
+#if 0
   GstMaruDecClass *oclass;
-
   oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
+#endif
 
   CODEC_LOG (DEBUG, "drain frame\n");
-#if 1
   {
     gint have_data, len, try = 0;
 
@@ -318,7 +318,6 @@ gst_marudec_drain (GstMaruDec *marudec)
       }
     } while (try++ < 10);
   }
-#endif
 
   if (marudec->segment.rate < 0.0) {
     CODEC_LOG (DEBUG, "reverse playback\n");
@@ -1054,6 +1053,7 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
   const GstTSInfo *out_info;
 
   decode = gst_marudec_do_qos (marudec, dec_info->timestamp, &mode_switch);
+  CODEC_LOG (DEBUG, "decode: %d\n", decode);
 
   CODEC_LOG (DEBUG, "decode video: input buffer size: %d\n", size);
   len =
@@ -1384,7 +1384,7 @@ gst_marudec_chain (GstPad *pad, GstBuffer *buffer)
   GstMaruDec *marudec;
   GstMaruDecClass *oclass;
   guint8 *in_buf;
-  gint in_size, len, have_data;
+  gint in_size, have_data;
   GstFlowReturn ret = GST_FLOW_OK;
   GstClockTime in_timestamp;
   GstClockTime in_duration;
@@ -1477,8 +1477,7 @@ gst_marudec_chain (GstPad *pad, GstBuffer *buffer)
 
   dec_info = in_info;
 
-  len =
-    gst_marudec_frame (marudec, in_buf, in_size, &have_data, dec_info, in_offset, &ret);
+  gst_marudec_frame (marudec, in_buf, in_size, &have_data, dec_info, in_offset, &ret);
 
 #if 0
   if (marudec->clear_ts) {
