@@ -134,10 +134,8 @@ codec_picture_copy (CodecContext *ctx, uint8_t *pict,
 void
 codec_flush_buffers (CodecContext *ctx, CodecDevice *dev);
 
-#ifndef USE_HEAP_BUFFER
 GstFlowReturn
-codec_buffer_alloc (GstPad *pad, guint64 offset,
+codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset,
                     guint size, GstCaps *caps, GstBuffer **buf);
-#endif
 
 #endif /* __GST_MARU_INTERFACE_H__ */

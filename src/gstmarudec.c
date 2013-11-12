@@ -882,7 +882,7 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
    */
   gst_pad_set_bufferalloc_function(
     GST_PAD_PEER(marudec->srcpad),
-    (GstPadBufferAllocFunction) codec_buffer_alloc);
+    (GstPadBufferAllocFunction) codec_buffer_alloc_and_copy);
 
   ret = gst_pad_alloc_buffer_and_set_caps (marudec->srcpad,
     GST_BUFFER_OFFSET_NONE, pict_size,
