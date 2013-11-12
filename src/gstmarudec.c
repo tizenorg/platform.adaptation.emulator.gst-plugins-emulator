@@ -37,74 +37,9 @@
 #define GST_MARUDEC_PARAMS_QDATA g_quark_from_static_string("marudec-params")
 
 /* indicate dts, pts, offset in the stream */
-typedef struct
-{
-  gint idx;
-  GstClockTime timestamp;
-  GstClockTime duration;
-  gint64 offset;
-} GstTSInfo;
 
 #define GST_TS_INFO_NONE &ts_info_none
 static const GstTSInfo ts_info_none = { -1, -1, -1, -1 };
-
-#define MAX_TS_MASK 0xff
-
-typedef struct _GstMaruDec
-{
-  GstElement element;
-
-  GstPad *srcpad;
-  GstPad *sinkpad;
-
-  CodecContext *context;
-  CodecDevice *dev;
-
-  union {
-    struct {
-      gint width, height;
-      gint clip_width, clip_height;
-      gint par_n, par_d;
-      gint fps_n, fps_d;
-      gint old_fps_n, old_fps_d;
-      gboolean interlaced;
-
-      enum PixelFormat pix_fmt;
-    } video;
-    struct {
-      gint channels;
-      gint samplerate;
-      gint depth;
-    } audio;
-  } format;
-
-  gboolean opened;
-  gboolean discont;
-  gboolean clear_ts;
-
-  /* tracking DTS/PTS */
-  GstClockTime next_out;
-
-  /* Qos stuff */
-  gdouble proportion;
-  GstClockTime earliest_time;
-  gint64 processed;
-  gint64 dropped;
-
-
-  /* GstSegment can be used for two purposes:
-   * 1. performing seeks (handling seek events)
-   * 2. tracking playback regions (handling newsegment events)
-   */
-  GstSegment segment;
-
-  GstTSInfo ts_info[MAX_TS_MASK + 1];
-  gint ts_idx;
-
-  /* reverse playback queue */
-  GList *queued;
-
-} GstMaruDec;
 
 typedef struct _GstMaruDecClass
 {
@@ -940,14 +875,14 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
 
   CODEC_LOG (DEBUG, "outbuf size of decoded video: %d\n", pict_size);
 
-#ifndef USE_HEAP_BUFFER
+  gst_pad_set_element_private(GST_PAD_PEER(marudec->srcpad), (gpointer)marudec);
+
   /* GstPadBufferAllocFunction is mostly overridden by elements that can
    * provide a hardware buffer in order to avoid additional memcpy operations.
    */
   gst_pad_set_bufferalloc_function(
     GST_PAD_PEER(marudec->srcpad),
     (GstPadBufferAllocFunction) codec_buffer_alloc);
-#endif
 
   ret = gst_pad_alloc_buffer_and_set_caps (marudec->srcpad,
     GST_BUFFER_OFFSET_NONE, pict_size,
@@ -957,16 +892,6 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
       gst_flow_get_name (ret));
     return ret;
   }
-
-  if ((uintptr_t) GST_BUFFER_DATA (*outbuf) % 16) {
-    GST_DEBUG_OBJECT (marudec,
-      "Downstream can't allocate aligned buffers.");
-    gst_buffer_unref (*outbuf);
-    *outbuf = new_aligned_buffer (pict_size, GST_PAD_CAPS (marudec->srcpad));
-  }
-
-  codec_picture_copy (marudec->context, GST_BUFFER_DATA (*outbuf),
-    GST_BUFFER_SIZE (*outbuf), marudec->dev);
 
   return ret;
 }

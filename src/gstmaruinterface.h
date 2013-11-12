@@ -33,6 +33,72 @@
 
 #include "gstmaru.h"
 
+#define MAX_TS_MASK 0xff
+
+typedef struct
+{
+  gint idx;
+  GstClockTime timestamp;
+  GstClockTime duration;
+  gint64 offset;
+} GstTSInfo;
+
+typedef struct _GstMaruDec
+{
+  GstElement element;
+
+  GstPad *srcpad;
+  GstPad *sinkpad;
+
+  CodecContext *context;
+  CodecDevice *dev;
+
+  union {
+    struct {
+      gint width, height;
+      gint clip_width, clip_height;
+      gint par_n, par_d;
+      gint fps_n, fps_d;
+      gint old_fps_n, old_fps_d;
+      gboolean interlaced;
+
+      enum PixelFormat pix_fmt;
+    } video;
+    struct {
+      gint channels;
+      gint samplerate;
+      gint depth;
+    } audio;
+  } format;
+
+  gboolean opened;
+  gboolean discont;
+  gboolean clear_ts;
+
+  /* tracking DTS/PTS */
+  GstClockTime next_out;
+
+  /* Qos stuff */
+  gdouble proportion;
+  GstClockTime earliest_time;
+  gint64 processed;
+  gint64 dropped;
+
+
+  /* GstSegment can be used for two purposes:
+   * 1. performing seeks (handling seek events)
+   * 2. tracking playback regions (handling newsegment events)
+   */
+  GstSegment segment;
+
+  GstTSInfo ts_info[MAX_TS_MASK + 1];
+  gint ts_idx;
+
+  /* reverse playback queue */
+  GList *queued;
+
+} GstMaruDec;
+
 int
 codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev);
 
