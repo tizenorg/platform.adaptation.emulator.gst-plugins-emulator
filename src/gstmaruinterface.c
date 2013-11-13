@@ -266,7 +266,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
-  CODEC_LOG (DEBUG, "decode_video. meta_offset = 0x%x\n", meta_offset);
+  CODEC_LOG (DEBUG, "decode_video. ctx_id: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
   _codec_decode_video_meta_to (in_size, idx, in_offset, device_mem + meta_offset + size);
 
   ret = secure_device_mem(dev->fd, in_size, &buffer);
@@ -320,17 +320,17 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   if (ret < 0) {
     return -1;
   }
-  CODEC_LOG (DEBUG, "after decode_audio. ctx_id: %d, buffer = 0x%x\n", ctx->index, (int)buffer);
+  CODEC_LOG (DEBUG, "after decode_audio. ctx_id: %d, buffer = 0x%x\n", ctx->index, (int)device_mem + opaque);
 
   len =
     _codec_decode_audio_meta_from (&ctx->audio, have_data, device_mem + meta_offset + size);
   if (len > 0) {
-    _codec_decode_audio_outbuf (*have_data, samples, buffer);
+    _codec_decode_audio_outbuf (*have_data, samples, device_mem + opaque);
   } else {
     CODEC_LOG (DEBUG, "decode_audio failure. ctx_id: %d\n", ctx->index);
   }
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -373,11 +373,11 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
 
   CODEC_LOG (DEBUG, "encode_video. outbuf size: %d\n", len);
   if (len > 0) {
-    memcpy (out_buf, buffer, len);
-    dev->mem_info.offset = GET_OFFSET(buffer);
+    memcpy (out_buf, device_mem + opaque, len);
+    dev->mem_info.offset = opaque;
   }
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -418,9 +418,9 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   CODEC_LOG (DEBUG, "read, encode_video. mem_offset = 0x%x\n", opaque);
 
-  len = _codec_encode_audio_outbuf (out_buf, buffer);
+  len = _codec_encode_audio_outbuf (out_buf, device_mem + opaque);
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 

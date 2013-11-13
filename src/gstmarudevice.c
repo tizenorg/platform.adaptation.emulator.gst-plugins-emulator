@@ -90,7 +90,9 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 
   CODEC_LOG (INFO, "succeeded to map device memory: %p.\n", dev->buf);
   dev->fd = fd;
-  device_fd = fd;
+  if(media_type == AVMEDIA_TYPE_VIDEO) {
+    device_fd = fd;
+  }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
