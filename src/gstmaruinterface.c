@@ -266,7 +266,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
-  CODEC_LOG (DEBUG, "decode_video. meta_offset = 0x%x\n", meta_offset);
+  CODEC_LOG (DEBUG, "decode_video. ctx_id: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
   _codec_decode_video_meta_to (in_size, idx, in_offset, device_mem + meta_offset + size);
 
   ret = secure_device_mem(dev->fd, in_size, &buffer);
@@ -330,7 +330,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
     CODEC_LOG (DEBUG, "decode_audio failure. ctx_id: %d\n", ctx->index);
   }
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -377,7 +377,7 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
     dev->mem_info.offset = GET_OFFSET(buffer);
   }
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -420,7 +420,7 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   len = _codec_encode_audio_outbuf (out_buf, buffer);
 
-  release_device_mem(dev->fd, buffer);
+  release_device_mem(dev->fd, device_mem + opaque);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
