@@ -63,15 +63,8 @@ _codec_init_meta_to (CodecContext *ctx,
 
   size = _codec_info_data (codec, device_buf);
 
-  CODEC_LOG (DEBUG, "context_id: %d, name: %s, media type: %s\n",
+  CODEC_LOG (INFO, "context_id: %d, name: %s, media type: %s\n",
     ctx->index, codec->name, codec->media_type ? "AUDIO" : "VIDEO");
-
-  if (codec->media_type == AVMEDIA_TYPE_AUDIO) {
-    CODEC_LOG (DEBUG,
-      "before init. audio sample_fmt: %d\n", ctx->audio.sample_fmt);
-    CODEC_LOG (DEBUG,
-      "before init. audio block_align: %d\n", ctx->audio.block_align);
-  }
 
   CODEC_LOG (DEBUG, "init. write data to qemu, size: %d\n", size);
   memcpy (device_buf + size, ctx, sizeof(CodecContext) - 12);
@@ -102,7 +95,7 @@ _codec_init_meta_from (CodecContext *ctx,
       ctx->audio.frame_size = audio.frame_size;
       ctx->audio.bits_per_sample_fmt = audio.bits_per_sample_fmt;
 #endif
-      CODEC_LOG (INFO,
+      CODEC_LOG (DEBUG,
         "audio sample_fmt: %d\n", *(int *)(device_buf + size));
 
       memcpy(&ctx->audio.sample_fmt, device_buf + size, sizeof(audio.sample_fmt));
@@ -111,7 +104,7 @@ _codec_init_meta_from (CodecContext *ctx,
       size += sizeof(audio.frame_size);
       memcpy(&ctx->audio.bits_per_sample_fmt, device_buf + size, sizeof(audio.bits_per_sample_fmt));
 
-      CODEC_LOG (INFO,
+      CODEC_LOG (DEBUG,
         "after init. audio sample_fmt: %d\n", ctx->audio.sample_fmt);
     }
   } else {
@@ -130,8 +123,7 @@ _codec_decode_video_meta_to (int in_size, int idx, int64_t in_offset, uint8_t *d
 }
 
 void
-_codec_decode_video_inbuf (uint8_t *in_buf, int in_size,
-                              uint8_t *device_buf)
+_codec_decode_video_inbuf (uint8_t *in_buf, int in_size, uint8_t *device_buf)
 {
   int size = 0;
 
@@ -143,7 +135,6 @@ _codec_decode_video_inbuf (uint8_t *in_buf, int in_size,
 
   CODEC_LOG (DEBUG, "decode_video. inbuf_size: %d\n", in_size);
 }
-
 
 int
 _codec_decode_video_meta_from (VideoData *video,

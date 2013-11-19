@@ -61,7 +61,7 @@ enum codec_log_level {
 #define CODEC_LOG(level, fmt, ...) \
   do { \
     if (level <= INFO) \
-      printf("[gst-maru][%d] " fmt, __LINE__, ##__VA_ARGS__); \
+      printf("[gst-maru][%s:%d] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
   } while (0)
 
 #define FF_INPUT_BUFFER_PADDING_SIZE  8
