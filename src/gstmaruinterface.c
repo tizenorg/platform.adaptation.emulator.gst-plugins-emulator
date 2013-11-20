@@ -74,19 +74,18 @@ _codec_header (int32_t api_index, uint32_t mem_offset, uint8_t *device_buf)
 }
 
 static void
-_codec_write_to_qemu (int32_t ctx_index, int32_t api_index,
+_codec_invoke_qemu (int32_t ctx_index, int32_t api_index,
                           uint32_t mem_offset, int fd)
 {
-  CodecIOParams ioparam;
+  CodecIOParams ioparam = { 0 };
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  memset(&ioparam, 0, sizeof(ioparam));
   ioparam.api_index = api_index;
   ioparam.ctx_index = ctx_index;
   ioparam.mem_offset = mem_offset;
-  if (write (fd, &ioparam, 1) < 0) {
-    CODEC_LOG (ERR, "failed to write input data\n");
+  if (!ioctl (fd, CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER, &ioparam)) {
+    CODEC_LOG (ERR, "failed to invoke codec APIs\n");
   }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
@@ -161,7 +160,7 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   opaque.buffer_size = size;
 
   CODEC_LOG (DEBUG, "buffer_and_copy. ctx_id: %d\n", marudec->context->index);
-  _codec_write_to_qemu (marudec->context->index, CODEC_PICTURE_COPY,
+  _codec_invoke_qemu (marudec->context->index, CODEC_PICTURE_COPY,
                         0, marudec->dev->fd);
 
   ret = ioctl (marudec->dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
@@ -223,7 +222,7 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
 
   _codec_init_meta_to (ctx, codec, device_mem + meta_offset + size);
 
-  _codec_write_to_qemu (ctx->index, CODEC_INIT, 0, dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_INIT, 0, dev->fd);
 
   CODEC_LOG (DEBUG,
     "init. ctx: %d meta_offset = 0x%x, size: %d\n", ctx->index, meta_offset, size);
@@ -245,7 +244,7 @@ codec_deinit (CodecContext *ctx, CodecDevice *dev)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   CODEC_LOG (INFO, "close. context index: %d\n", ctx->index);
-  _codec_write_to_qemu (ctx->index, CODEC_DEINIT, 0, dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_DEINIT, 0, dev->fd);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -256,7 +255,7 @@ codec_flush_buffers (CodecContext *ctx, CodecDevice *dev)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   CODEC_LOG (DEBUG, "flush buffers. context index: %d\n", ctx->index);
-  _codec_write_to_qemu (ctx->index, CODEC_FLUSH_BUFFERS, 0, dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_FLUSH_BUFFERS, 0, dev->fd);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -285,7 +284,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
 
   _codec_decode_video_inbuf (in_buf, in_size, buffer);
   dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_write_to_qemu (ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd);
 
   // after decoding video, no need to get outbuf.
   len =
@@ -321,7 +320,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
 
   _codec_decode_audio_inbuf (in_buf, in_size, buffer);
   dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_write_to_qemu (ctx->index, CODEC_DECODE_AUDIO, GET_OFFSET(buffer), dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_DECODE_AUDIO, GET_OFFSET(buffer), dev->fd);
 
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
@@ -373,7 +372,7 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
 
   _codec_encode_video_inbuf (in_buf, in_size, buffer);
   dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_write_to_qemu (ctx->index, CODEC_ENCODE_VIDEO, GET_OFFSET(buffer), dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_ENCODE_VIDEO, GET_OFFSET(buffer), dev->fd);
 
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
@@ -424,7 +423,7 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   _codec_encode_audio_inbuf (in_buf, in_size, buffer);
   dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_write_to_qemu (ctx->index, CODEC_ENCODE_AUDIO, GET_OFFSET(buffer), dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_ENCODE_AUDIO, GET_OFFSET(buffer), dev->fd);
 
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;

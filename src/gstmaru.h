@@ -121,10 +121,8 @@ typedef struct _AudioData {
 } AudioData;
 
 typedef struct _CodecContext {
-//  union {
-    VideoData video;
-    AudioData audio;
-//  };
+  VideoData video;
+  AudioData audio;
 
   int32_t bit_rate;
   int32_t codec_tag;
@@ -156,6 +154,7 @@ enum CODEC_IO_CMD {
   CODEC_CMD_SECURE_BUFFER,
   CODEC_CMD_TRY_SECURE_BUFFER,
   CODEC_CMD_RELEASE_BUFFER,
+  CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER,
 };
 
 enum CODEC_MEDIA_TYPE {
