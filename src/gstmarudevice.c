@@ -116,8 +116,6 @@ gst_maru_codec_device_close (CodecDevice *dev)
     return -1;
   }
 
-  ioctl(fd, CODEC_CMD_RELEASE_BUFFER, &dev->mem_info.offset);
-
   g_mutex_lock (&gst_avcodec_mutex);
   opened_cnt--;
   if (!opened_cnt) {

@@ -56,23 +56,6 @@ typedef struct _CodecBufferId {
 #define GET_OFFSET(buffer)      ((uint32_t)buffer - (uint32_t)device_mem)
 #define SMALLDATA               0
 
-static int
-_codec_header (int32_t api_index, uint32_t mem_offset, uint8_t *device_buf)
-{
-  CodecHeader header = { 0 };
-
-  CODEC_LOG (DEBUG, "enter, %s\n", __func__);
-
-  header.api_index = api_index;
-  header.mem_offset = mem_offset;
-
-  memcpy(device_buf, &header, sizeof(header));
-
-  CODEC_LOG (DEBUG, "leave, %s\n", __func__);
-
-  return sizeof(header);
-}
-
 static void
 _codec_invoke_qemu (int32_t ctx_index, int32_t api_index,
                           uint32_t mem_offset, int fd)
@@ -84,7 +67,7 @@ _codec_invoke_qemu (int32_t ctx_index, int32_t api_index,
   ioparam.api_index = api_index;
   ioparam.ctx_index = ctx_index;
   ioparam.mem_offset = mem_offset;
-  if (!ioctl (fd, CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER, &ioparam)) {
+  if (ioctl (fd, CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER, &ioparam) < 0) {
     CODEC_LOG (ERR, "failed to invoke codec APIs\n");
   }
 
@@ -92,17 +75,18 @@ _codec_invoke_qemu (int32_t ctx_index, int32_t api_index,
 }
 
 static int
-secure_device_mem (int fd, guint buf_size, gpointer* buffer)
+secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
 {
   int ret = 0;
-  uint32_t opaque = 0;
-  struct mem_info info = {0, };
+//  uint32_t opaque = 0;
+  CodecBufferId opaque;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-  opaque = buf_size;
+  opaque.buffer_index = ctx_id;
+  opaque.buffer_size = buf_size;
 
   ret = ioctl (fd, CODEC_CMD_SECURE_BUFFER, &opaque);
-  *buffer = (gpointer)((uint32_t)device_mem + opaque);
+  *buffer = (gpointer)((uint32_t)device_mem + opaque.buffer_size);
   CODEC_LOG (DEBUG, "buffer: 0x%x\n", (int)buffer);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
@@ -119,10 +103,6 @@ release_device_mem (int fd, gpointer start)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   CODEC_LOG (DEBUG, "release device_mem start: %p, offset: 0x%x\n", start, offset);
-  if (fd == -1) {
-    // FIXME: We use device_fd now...
-    fd = device_fd;
-  }
   ret = ioctl (fd, CODEC_CMD_RELEASE_BUFFER, &offset);
   if (ret < 0) {
     CODEC_LOG (ERR, "failed to release buffer\n");
@@ -136,7 +116,7 @@ codec_buffer_free (gpointer start)
 {
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  release_device_mem (-1, start);
+  release_device_mem (device_fd, start);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -275,7 +255,7 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   CODEC_LOG (DEBUG, "decode_video. ctx_id: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
   _codec_decode_video_meta_to (in_size, idx, in_offset, device_mem + meta_offset + size);
 
-  ret = secure_device_mem(dev->fd, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
   if (ret < 0) {
     CODEC_LOG (ERR,
       "decode_video. failed to get available memory to write inbuf\n");
@@ -311,7 +291,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   CODEC_LOG (DEBUG, "decode_audio. ctx_id: %d meta_offset = 0x%x\n", ctx->index, meta_offset);
   _codec_decode_audio_meta_to (in_size, device_mem + meta_offset + size);
 
-  ret = secure_device_mem(dev->fd, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
   if (ret < 0) {
     CODEC_LOG (ERR,
       "decode_audio. failed to get available memory to write inbuf\n");
@@ -364,7 +344,7 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
   CODEC_LOG (DEBUG, "encode_video. meta_offset = 0x%x\n", meta_offset);
   _codec_encode_video_meta_to (in_size, in_timestamp, device_mem + meta_offset + size);
 
-  ret = secure_device_mem(dev->fd, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
   if (ret < 0) {
     CODEC_LOG (ERR, "failed to small size of buffer.\n");
     return -1;
@@ -412,11 +392,9 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   meta_offset = (ctx->index - 1) * CODEC_META_DATA_SIZE;
   CODEC_LOG (DEBUG, "encode_audio. meta mem_offset = 0x%x\n", meta_offset);
-  size = _codec_header (CODEC_ENCODE_AUDIO, opaque.buffer_size,
-                            device_mem + meta_offset);
   _codec_encode_audio_meta_to (max_size, in_size, device_mem + meta_offset + size);
 
-  ret = secure_device_mem(dev->fd, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
   if (ret < 0) {
     return -1;
   }
