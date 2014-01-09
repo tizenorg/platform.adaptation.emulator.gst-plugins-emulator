@@ -1,3 +1,6 @@
+* Thu Jan  9 16:50:00 KST 2014 Kitae Kim <kt920.kim@samsung.com>
+- Update package version.
+
 * Mon Nov  4 11:53:52 UTC 2013 Kitae Kim <kt920.kim@samsung.com>
 - Changed a way to use mmap api. It has to be called once per a process.
   When emulator does multi decoding or encoding task in a process,
