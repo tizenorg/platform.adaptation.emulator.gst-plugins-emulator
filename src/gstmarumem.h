@@ -1,7 +1,7 @@
 /*
  * GStreamer codec plugin for Tizen Emulator.
  *
- * Copyright (C) 2013 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (C) 2013 - 2014 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Contact:
  * KiTae Kim <kt920.kim@samsung.com>
@@ -33,40 +33,24 @@
 
 #include "gstmaru.h"
 
-void _codec_init_meta_to (CodecContext *ctx, CodecElement *codec, uint8_t *device_buf);
+void codec_init_data_to (CodecContext *, CodecElement *, gpointer);
 
-int _codec_init_meta_from (CodecContext *ctx, int media_type, uint8_t *device_buf);
+int codec_init_data_from (CodecContext *, int, gpointer);
 
-void _codec_decode_video_meta_to (int in_size, int idx, int64_t in_offset, uint8_t *device_buf);
+void codec_decode_video_data_to (int, int, int64_t, uint8_t *, gpointer);
 
-void _codec_decode_video_inbuf (uint8_t *in_buf, int in_size, uint8_t *device_buf);
+int codec_decode_video_data_from (int *, VideoData *, gpointer);
 
-int _codec_decode_video_meta_from (VideoData *video, int *got_picture_ptr,
-                                  uint8_t *device_buf);
+void codec_decode_audio_data_to (int, uint8_t *, gpointer);
 
-void _codec_decode_audio_meta_to (int in_size, uint8_t *device_buf);
+int codec_decode_audio_data_from (int *, int16_t *, AudioData *, gpointer);
 
+void codec_encode_video_data_to (int, int64_t, uint8_t *, gpointer);
 
-void _codec_decode_audio_inbuf (uint8_t *in_buf, int in_size,
-                                  uint8_t *device_buf);
+int codec_encode_video_data_from (uint8_t *, gpointer);
 
-int _codec_decode_audio_meta_from (AudioData *audio, int *frame_size_ptr,
-                                  uint8_t *device_buf);
+void codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, gpointer buffer);
 
-void _codec_decode_audio_outbuf (int outbuf_size, int16_t *samples,
-                                  uint8_t *device_buf);
-
-void _codec_encode_video_meta_to (int in_size, int64_t in_timestamp, uint8_t *device_buf);
-
-void _codec_encode_video_inbuf (uint8_t *in_buf, int in_size,
-                                  uint8_t *device_buf);
-
-void _codec_encode_video_outbuf (int len, uint8_t *outbuf, uint8_t *device_buf);
-
-void _codec_encode_audio_meta_to (int max_size, int in_size, uint8_t *device_buf);
-
-void _codec_encode_audio_inbuf (uint8_t *in_buf, int in_size, uint8_t *device_buf);
-
-int _codec_encode_audio_outbuf (uint8_t *out_buf, uint8_t *device_buf);
+int codec_encode_audio_data_from (uint8_t *out_buf, gpointer buffer);
 
 #endif

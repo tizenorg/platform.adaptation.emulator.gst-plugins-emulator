@@ -56,7 +56,7 @@ enum codec_log_level {
 };
 
 #define CODEC_DEV   "/dev/brillcodec"
-#define CODEC_VER   1
+#define CODEC_VER   2
 
 #define CODEC_LOG(level, fmt, ...) \
   do { \

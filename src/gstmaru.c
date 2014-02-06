@@ -134,7 +134,7 @@ static gboolean
 plugin_init (GstPlugin *plugin)
 {
   GST_DEBUG_CATEGORY_INIT (maru_debug,
-      "tizen-maru", 0, "Tizen Emulator Codec Elements");
+      "tizen-emul", 0, "Tizen Emulator Codec Elements");
 
   gst_maru_init_pix_fmt_info ();
 
@@ -177,7 +177,7 @@ GST_PLUGIN_DEFINE (
   "tizen-emul",
   "Codecs for Tizen Emulator",
   plugin_init,
-  "0.1.2",
+  "0.2.2",
   "LGPL",
   "gst-plugins-emulator",
   "http://tizen.org"
