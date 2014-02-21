@@ -229,7 +229,6 @@ codec_encode_video_data_from (uint8_t *out_buf, gpointer buffer)
   CODEC_LOG (DEBUG, "encode_video. outbuf size: %d\n", len);
   if (len > 0) {
     memcpy (out_buf, buffer + size, len);
-    // dev->mem_info.offset = opaque.buffer_size;
   }
 
   return len;

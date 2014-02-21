@@ -718,15 +718,17 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
     "encoded video. mem_offset = 0x%x\n",  mem_offset);
 
   outbuf = gst_buffer_new_and_alloc (ret_size);
-//  memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
-  memcpy (GST_BUFFER_DATA (outbuf), working_buf, ret_size);
+  memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
+  // memcpy (GST_BUFFER_DATA (outbuf), working_buf, ret_size);
   GST_BUFFER_TIMESTAMP (outbuf) = GST_BUFFER_TIMESTAMP (buffer);
   GST_BUFFER_DURATION (outbuf) = GST_BUFFER_DURATION (buffer);
 
+#if 0
   ret = ioctl(maruenc->dev->fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
   if (ret < 0) {
     CODEC_LOG (ERR, "failed to release used buffer\n");
   }
+#endif
 
 #if 0
   if (maruenc->context->coded_frame) {
