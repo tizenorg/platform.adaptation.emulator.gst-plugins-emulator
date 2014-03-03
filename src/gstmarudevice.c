@@ -45,8 +45,8 @@ static GMutex gst_avcodec_mutex;
 
 #define CODEC_DEVICE_MEM_SIZE 32 * 1024 * 1024
 
-gpointer device_mem = NULL;
-int device_fd = 0;
+gpointer device_mem = MAP_FAILED;
+int device_fd = -1;
 int opened_cnt = 0;
 
 int
@@ -55,48 +55,45 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   g_mutex_lock (&gst_avcodec_mutex);
-  if (!device_fd) {
+  if (device_fd == -1) {
     if ((device_fd = open(CODEC_DEV, O_RDWR)) < 0) {
-      perror("Failed to open codec device.");
+      GST_ERROR ("failed to open codec device.");
       g_mutex_unlock (&gst_avcodec_mutex);
       return -1;
     }
-    CODEC_LOG (INFO, "succeeded to open %s. %d.\n", CODEC_DEV, device_fd);
+    GST_INFO ("succeeded to open %s. %d", CODEC_DEV, device_fd);
   } else {
-    CODEC_LOG (DEBUG, "codec device is already opened\n");
+    GST_DEBUG ("codec device is already opened");
   }
-  g_mutex_unlock (&gst_avcodec_mutex);
-
   dev->fd = device_fd;
+  // g_mutex_unlock (&gst_avcodec_mutex);
 
   // FIXME
   dev->buf_size = CODEC_DEVICE_MEM_SIZE;
-  CODEC_LOG (DEBUG, "mmap_size: %d\n", dev->buf_size);
+  GST_DEBUG ("mmap_size: %d", dev->buf_size);
   dev->mem_info.index = dev->buf_size;
 
-  g_mutex_lock (&gst_avcodec_mutex);
-  if (!device_mem) {
+  // g_mutex_lock (&gst_avcodec_mutex);
+  if (device_mem == MAP_FAILED) {
     device_mem =
       mmap (NULL, CODEC_DEVICE_MEM_SIZE, PROT_READ | PROT_WRITE,
           MAP_SHARED, device_fd, 0);
     if (device_mem == MAP_FAILED) {
-      perror("Failed to map device memory of codec.");
-#if 0
+      GST_ERROR ("failed to map device memory of codec");
       close (device_fd);
-      device_fd = 0;
-#endif
+      dev->fd = device_fd = -1;
       g_mutex_unlock (&gst_avcodec_mutex);
       return -1;
     }
-    CODEC_LOG (INFO, "succeeded to map device memory: %p.\n", device_mem);
+    GST_INFO ("succeeded to map device memory: %p", device_mem);
   } else {
-    CODEC_LOG (DEBUG, "mapping device memory is already done\n");
+    GST_DEBUG ("mapping device memory is already done");
   }
-  opened_cnt++;
-  CODEC_LOG (DEBUG, "open count: %d\n", opened_cnt);
-  g_mutex_unlock (&gst_avcodec_mutex);
-
   dev->buf = device_mem;
+
+  opened_cnt++;
+  GST_DEBUG ("open count: %d", opened_cnt);
+  g_mutex_unlock (&gst_avcodec_mutex);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -112,27 +109,31 @@ gst_maru_codec_device_close (CodecDevice *dev)
 
   fd = dev->fd;
   if (fd < 0) {
-    GST_ERROR("Failed to get %s fd.\n", CODEC_DEV);
+    GST_ERROR ("Failed to get %s fd.\n", CODEC_DEV);
     return -1;
   }
 
   g_mutex_lock (&gst_avcodec_mutex);
-  opened_cnt--;
-  if (!opened_cnt) {
-    CODEC_LOG (INFO, "Release memory region of %p.\n", device_mem);
-    if (munmap(device_mem, CODEC_DEVICE_MEM_SIZE) != 0) {
-      CODEC_LOG(ERR, "Failed to release memory region of %s.\n", CODEC_DEV);
-    }
-    device_mem = NULL;
-
-    CODEC_LOG (INFO, "close %s.\n", CODEC_DEV);
-    if (close(fd) != 0) {
-      GST_ERROR("Failed to close %s. fd: %d\n", CODEC_DEV, fd);
-    }
-    device_fd = 0;
+  if (opened_cnt > 0) {
+    opened_cnt--;
   }
+  GST_DEBUG ("open count: %d", opened_cnt);
+
+  if (opened_cnt == 0) {
+    GST_INFO ("release device memory %p", device_mem);
+    if (munmap(device_mem, CODEC_DEVICE_MEM_SIZE) != 0) {
+      GST_ERROR ("failed to release device memory of %s", CODEC_DEV);
+    }
+    device_mem = MAP_FAILED;
+
+    GST_INFO ("close %s", CODEC_DEV);
+    if (close(fd) != 0) {
+      GST_ERROR ("failed to close %s fd: %d\n", CODEC_DEV, fd);
+    }
+    dev->fd = device_fd = -1;
+  }
+  dev->buf = MAP_FAILED;
   g_mutex_unlock (&gst_avcodec_mutex);
-  dev->buf = NULL;
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
@@ -147,7 +148,7 @@ gst_maru_avcodec_open (CodecContext *ctx,
   int ret;
 
   if (gst_maru_codec_device_open (dev, codec->media_type) < 0) {
-    perror("failed to open device.\n");
+    GST_ERROR ("failed to open device");
     return -1;
   }
 
@@ -163,7 +164,17 @@ gst_maru_avcodec_close (CodecContext *ctx, CodecDevice *dev)
 {
   int ret;
 
-  CODEC_LOG (DEBUG, "gst_maru_avcodec_close\n");
+  GST_DEBUG ("close %d of context", ctx->index);
+
+  if (ctx && ctx->index == 0) {
+    GST_INFO ("context is not opened yet or context before %d", ctx->index);
+    return -1;
+  }
+
+  if (dev && dev->fd < 0) {
+    GST_INFO ("fd is not opened yet or closed before %d", dev->fd);
+    return -1;
+  }
 
   g_mutex_lock (&gst_avcodec_mutex);
   codec_deinit (ctx, dev);

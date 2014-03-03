@@ -436,7 +436,6 @@ gst_maruenc_getcaps (GstPad *pad)
       GST_DEBUG_OBJECT (maruenc, "Opening codec failed with pixfmt: %d", pixfmt);
     }
 
-    gst_maru_avcodec_close (ctx, maruenc->dev);
 #if 0
     if (ctx->priv_data) {
       gst_maru_avcodec_close (ctx, maruenc->dev);
@@ -471,7 +470,6 @@ gst_maruenc_setcaps (GstPad *pad, GstCaps *caps)
   GstCaps *allowed_caps;
   GstCaps *icaps;
   enum PixelFormat pix_fmt;
-  int32_t buf_size;
 
   maruenc = (GstMaruEnc *) (gst_pad_get_parent (pad));
   oclass = (GstMaruEncClass *) (G_OBJECT_GET_CLASS (maruenc));
@@ -527,28 +525,6 @@ gst_maruenc_setcaps (GstPad *pad, GstCaps *caps)
 
   pix_fmt = maruenc->context->video.pix_fmt;
 
-  {
-    switch (oclass->codec->media_type) {
-    case AVMEDIA_TYPE_VIDEO:
-    {
-      int width, height;
-
-      width = maruenc->context->video.width;
-      height = maruenc->context->video.height;
-      buf_size = width * height * 6 + FF_MIN_BUFFER_SIZE + 100;
-      break;
-    }
-    case AVMEDIA_TYPE_AUDIO:
-        buf_size = FF_MAX_AUDIO_FRAME_SIZE + 100;
-        break;
-    default:
-        buf_size = -1;
-        break;
-    }
-  }
-
-  maruenc->dev->buf_size = gst_maru_align_size(buf_size);
-
   // open codec
   if (gst_maru_avcodec_open (maruenc->context,
       oclass->codec, maruenc->dev) < 0) {
@@ -587,7 +563,7 @@ gst_maruenc_setcaps (GstPad *pad, GstCaps *caps)
   other_caps =
   gst_maru_codecname_to_caps (oclass->codec->name, maruenc->context, TRUE);
   if (!other_caps) {
-  GST_DEBUG("Unsupported codec - no caps found");
+    GST_DEBUG ("Unsupported codec - no caps found");
     gst_maru_avcodec_close (maruenc->context, maruenc->dev);
     return FALSE;
   }
@@ -1090,6 +1066,7 @@ gst_maruenc_change_state (GstElement *element, GstStateChange transition)
   case GST_STATE_CHANGE_PAUSED_TO_READY:
     gst_maruenc_flush_buffers (maruenc, FALSE);
     if (maruenc->opened) {
+      GST_DEBUG_OBJECT (maruenc, "change_state: PAUSED_TO_READY, close context");
       gst_maru_avcodec_close (maruenc->context, maruenc->dev);
       maruenc->opened = FALSE;
     }
