@@ -352,7 +352,9 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
 int
 codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
                     int out_size, uint8_t *in_buf,
-                    int in_size, int64_t in_timestamp, CodecDevice *dev)
+                    int in_size, int64_t in_timestamp,
+                    int *coded_frame, int *is_keyframe,
+                    CodecDevice *dev)
 {
   int len = 0, ret = 0;
   gpointer buffer = NULL;
@@ -380,7 +382,7 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
   }
   CODEC_LOG (DEBUG, "encode_video. mem_offset = 0x%x\n", opaque.buffer_size);
 
-  len = codec_encode_video_data_from (out_buf, device_mem + opaque.buffer_size);
+  len = codec_encode_video_data_from (out_buf, coded_frame, is_keyframe, device_mem + opaque.buffer_size);
   dev->mem_info.offset = opaque.buffer_size;
 
   release_device_mem(dev->fd, device_mem + opaque.buffer_size);

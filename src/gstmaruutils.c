@@ -276,7 +276,7 @@ gst_maru_caps_to_pixfmt (const GstCaps *caps, CodecContext *ctx, gboolean raw)
   if (fps != NULL && GST_VALUE_HOLDS_FRACTION (fps)) {
     ctx->video.fps_d = gst_value_get_fraction_numerator (fps);
     ctx->video.fps_n = gst_value_get_fraction_denominator (fps);
-  ctx->video.ticks_per_frame = 1;
+    ctx->video.ticks_per_frame = 1;
 
     GST_DEBUG ("setting framerate %d/%d = %lf",
         ctx->video.fps_d, ctx->video.fps_n,
@@ -320,7 +320,6 @@ gst_maru_caps_to_pixfmt (const GstCaps *caps, CodecContext *ctx, gboolean raw)
         break;
       }
     }
-//    printf ("get pixel format: %d, fourcc: %d\n", ctx->video.pix_fmt, fourcc);
   } else if (strcmp (gst_structure_get_name (str), "video/x-raw-rgb") == 0) {
     gint bpp = 0, rmask = 0, endianness = 0;
 

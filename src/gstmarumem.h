@@ -47,7 +47,7 @@ int codec_decode_audio_data_from (int *, int16_t *, AudioData *, gpointer);
 
 void codec_encode_video_data_to (int, int64_t, uint8_t *, gpointer);
 
-int codec_encode_video_data_from (uint8_t *, gpointer);
+int codec_encode_video_data_from (uint8_t *, int *, int *, gpointer);
 
 void codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, gpointer buffer);
 

@@ -219,7 +219,7 @@ codec_encode_video_data_to (int in_size, int64_t in_timestamp,
 }
 
 int
-codec_encode_video_data_from (uint8_t *out_buf, gpointer buffer)
+codec_encode_video_data_from (uint8_t *out_buf, int *coded_frame, int *is_keyframe, gpointer buffer)
 {
   int len = 0, size = 0;
 
@@ -228,7 +228,13 @@ codec_encode_video_data_from (uint8_t *out_buf, gpointer buffer)
 
   CODEC_LOG (DEBUG, "encode_video. outbuf size: %d\n", len);
   if (len > 0) {
+    memcpy (coded_frame, buffer + size, sizeof(int));
+    size += sizeof(int);
+    memcpy (is_keyframe, buffer + size, sizeof(int));
+    size += sizeof(int);
     memcpy (out_buf, buffer + size, len);
+
+    GST_DEBUG ("coded_frame %d, is_keyframe: %d", *coded_frame, *is_keyframe);
   }
 
   return len;

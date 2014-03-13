@@ -120,6 +120,7 @@ int
 codec_encode_video (CodecContext *ctx, uint8_t*out_buf,
                     int out_size, uint8_t *in_buf,
                     int in_size, int64_t in_timestamp,
+                    int *coded_frame, int *is_keyframe,
                     CodecDevice *dev);
 
 int

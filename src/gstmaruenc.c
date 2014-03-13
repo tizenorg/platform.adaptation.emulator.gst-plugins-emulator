@@ -201,6 +201,24 @@ gst_maruenc_init (GstMaruEnc *maruenc)
   maruenc->srcpad = gst_pad_new_from_template (oclass->srctempl, "src");
   gst_pad_use_fixed_caps (maruenc->srcpad);
 
+#if 0
+  maruenc->file = NULL;
+#endif
+  maruenc->delay = g_queue_new ();
+
+  // instead of AVCodecContext
+  maruenc->context = g_malloc0 (sizeof(CodecContext));
+  maruenc->context->video.pix_fmt = PIX_FMT_NONE;
+  maruenc->context->audio.sample_fmt = SAMPLE_FMT_NONE;
+
+  maruenc->opened = FALSE;
+
+  maruenc->dev = g_malloc0 (sizeof(CodecDevice));
+  if (!maruenc->dev) {
+    GST_ERROR_OBJECT (maruenc, "failed to allocate CodecDevice");
+    // TODO: error handling
+  }
+
   if (oclass->codec->media_type == AVMEDIA_TYPE_VIDEO) {
     gst_pad_set_chain_function (maruenc->sinkpad, gst_maruenc_chain_video);
     gst_pad_set_event_function (maruenc->sinkpad, gst_maruenc_event_video);
@@ -209,10 +227,7 @@ gst_maruenc_init (GstMaruEnc *maruenc)
     maruenc->bitrate = DEFAULT_VIDEO_BITRATE;
     maruenc->buffer_size = 512 * 1024;
     maruenc->gop_size = DEFAULT_VIDEO_GOP_SIZE;
-#if 0
-    maruenc->lmin = 2;
-    maruenc->lmax = 31;
-#endif
+
   } else if (oclass->codec->media_type == AVMEDIA_TYPE_AUDIO){
     gst_pad_set_chain_function (maruenc->sinkpad, gst_maruenc_chain_audio);
     maruenc->bitrate = DEFAULT_AUDIO_BITRATE;
@@ -221,23 +236,7 @@ gst_maruenc_init (GstMaruEnc *maruenc)
   gst_element_add_pad (GST_ELEMENT (maruenc), maruenc->sinkpad);
   gst_element_add_pad (GST_ELEMENT (maruenc), maruenc->srcpad);
 
-  maruenc->context = g_malloc0 (sizeof(CodecContext));
-  maruenc->context->video.pix_fmt = PIX_FMT_NONE;
-  maruenc->context->audio.sample_fmt = SAMPLE_FMT_NONE;
-
-  maruenc->opened = FALSE;
-
-#if 0
-  maruenc->file = NULL;
-#endif
-  maruenc->delay = g_queue_new ();
-
-  maruenc->dev = g_malloc0 (sizeof(CodecDevice));
-  if (!maruenc->dev) {
-    printf("[gst-maru][%d] failed to allocate memory\n", __LINE__);
-  }
-
-  // need to know what adapter does.
+  // TODO: need to know what adapter does.
   maruenc->adapter = gst_adapter_new ();
 }
 
@@ -255,6 +254,11 @@ gst_maruenc_finalize (GObject *object)
   if (maruenc->context) {
     g_free (maruenc->context);
     maruenc->context = NULL;
+  }
+
+  if (maruenc->dev) {
+    g_free (maruenc->dev);
+    maruenc->dev = NULL;
   }
 
   g_queue_free (maruenc->delay);
@@ -626,6 +630,8 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   uint32_t mem_offset = 0;
   uint8_t *working_buf = NULL;
 
+  int coded_frame, is_keyframe;
+
   GST_DEBUG_OBJECT (maruenc,
       "Received buffer of time %" GST_TIME_FORMAT,
       GST_TIME_ARGS (GST_BUFFER_TIMESTAMP (buffer)));
@@ -652,13 +658,13 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
     maruenc->context.video.fps_n, maruen->context.video.fps_d);
 #endif
 
-  // TODO: check whether this func needs or not.
   gst_maruenc_setup_working_buf (maruenc);
 
   ret_size =
     codec_encode_video (maruenc->context, maruenc->working_buf,
                 maruenc->working_buf_size, GST_BUFFER_DATA (buffer),
                 GST_BUFFER_SIZE (buffer), GST_BUFFER_TIMESTAMP (buffer),
+                &coded_frame, &is_keyframe,
                 maruenc->dev);
 
   if (ret_size < 0) {
@@ -687,11 +693,10 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   }
 #endif
 
-  mem_offset = maruenc->dev->mem_info.offset;
-  working_buf = maruenc->dev->buf + mem_offset;
+  // mem_offset = maruenc->dev->mem_info.offset;
+  // working_buf = maruenc->dev->buf + mem_offset;
 
-  CODEC_LOG (DEBUG,
-    "encoded video. mem_offset = 0x%x\n",  mem_offset);
+  GST_DEBUG_OBJECT (maruenc, "encoded video. mem_offset = 0x%x",  mem_offset);
 
   outbuf = gst_buffer_new_and_alloc (ret_size);
   memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
@@ -706,21 +711,21 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   }
 #endif
 
-#if 0
-  if (maruenc->context->coded_frame) {
-    if (!maruenc->context->coded_frame->key_frame) {
+  if (coded_frame) {
+    if (!is_keyframe) {
+      GST_DEBUG_OBJECT (maruenc, "this frame is not a keyframe");
       GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_DELTA_UNIT);
+      // GST_BUFFER_FLAG_DELTA_UNIT
+      // - this unit cannot be decoded independently.
     }
   } else {
     GST_WARNING_OBJECT (maruenc, "codec did not provide keyframe info");
   }
-#endif
   gst_buffer_set_caps (outbuf, GST_PAD_CAPS (maruenc->srcpad));
 
   gst_buffer_unref (buffer);
 
 #if 0
-
   if (force_keyframe) {
     gst_pad_push_event (maruenc->srcpad,
       gst_event_new_custom (GST_EVENT_CUSTOM_DOWNSTREAM,
