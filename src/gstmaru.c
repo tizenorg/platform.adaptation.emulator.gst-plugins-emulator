@@ -61,11 +61,10 @@ static GMutex gst_maru_mutex;
 static gboolean
 gst_maru_codec_element_init ()
 {
-  int fd = 0;
-  int version = 0;
+  int fd = 0, version = 0;
   int i, elem_cnt = 0;
   uint32_t data_length = 0;
-  void *buffer = NULL;
+  void *buffer = MAP_FAILED;
   CodecElement *elem = NULL;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
@@ -74,44 +73,51 @@ gst_maru_codec_element_init ()
 
   fd = open (CODEC_DEV, O_RDWR);
   if (fd < 0) {
-    perror ("[gst-maru] failed to open codec device");
+    // perror ("[gst-maru] failed to open codec device");
+    GST_ERROR ("failed to open codec device");
     return FALSE;
   }
 
   ioctl (fd, CODEC_CMD_GET_VERSION, &version);
   if (version != CODEC_VER) {
-    CODEC_LOG (INFO, "version conflict between device: %d, plugin: %d\n",
-              version, CODEC_VER);
+    // CODEC_LOG (INFO, "version conflict between device: %d, plugin: %d\n", version, CODEC_VER);
+    GST_LOG ("version conflict between device: %d, plugin: %d", version, CODEC_VER);
     close (fd);
     return FALSE;
   }
 
   buffer = mmap (NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (!buffer) {
-    perror ("[gst-maru] failure memory mapping.");
+  if (buffer == MAP_FAILED) {
+    // perror ("[gst-maru] failure memory mapping.");
+    GST_ERROR ("memory mapping failure");
     close (fd);
     return FALSE;
   }
 
-  CODEC_LOG (DEBUG, "request a device to get codec element.\n");
+  // CODEC_LOG (DEBUG, "request a device to get codec element.\n");
+  GST_DEBUG ("request a device to get codec element");
   if (ioctl(fd, CODEC_CMD_GET_ELEMENT, &data_length) < 0) {
-    perror ("[gst-maru] failed to get codec elements");
+    // perror ("[gst-maru] failed to get codec elements");
+    GST_ERROR ("failed to get codec elements");
     munmap (buffer, 4096);
     close (fd);
     return FALSE;
   }
 
-  CODEC_LOG (DEBUG, "sizeof codec elements. %d\n", data_length);
+  // CODEC_LOG (DEBUG, "sizeof codec elements. %d\n", data_length);
+  GST_DEBUG ("total size of codec elements %d", data_length);
   elem = g_malloc0 (data_length);
   if (!elem) {
-    CODEC_LOG (ERR, "Failed to allocate memory.\n");
+    // CODEC_LOG (ERR, "Failed to allocate memory.\n");
+    GST_ERROR ("failed to allocate memory for codec elements");
     munmap (buffer, 4096);
     close (fd);
     return FALSE;
   }
 
   if (ioctl(fd, CODEC_CMD_GET_ELEMENT_DATA, elem) < 0) {
-    CODEC_LOG (ERR, "failed to get codec elements\n");
+    // CODEC_LOG (ERR, "failed to get codec elements\n");
+    GST_ERROR ("failed to get codec elements");
     munmap (buffer, 4096);
     close (fd);
     return FALSE;
@@ -177,8 +183,8 @@ GST_PLUGIN_DEFINE (
   "tizen-emul",
   "Codecs for Tizen Emulator",
   plugin_init,
-  "0.2.2",
+  "0.2.7",
   "LGPL",
   "gst-plugins-emulator",
-  "http://tizen.org"
+  "http://www.tizen.org"
 )

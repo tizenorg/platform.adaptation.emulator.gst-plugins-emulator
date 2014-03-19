@@ -171,16 +171,19 @@ codec_decode_audio_data_from (int *have_data, int16_t *samples,
                               AudioData *audio, gpointer buffer)
 {
   int len = 0, size = 0;
+  int resample_size = 0;
 
   memcpy (&len, buffer, sizeof(len));
   size = sizeof(len);
   memcpy (have_data, buffer + size, sizeof(*have_data));
   size += sizeof(*have_data);
 
-  CODEC_LOG (DEBUG, "decode_audio. len %d, have_data %d\n",
-            len, (*have_data));
+  GST_DEBUG ("decode_audio. len %d, have_data %d", len, (*have_data));
 
   if (*have_data) {
+    memcpy (&audio->sample_fmt, buffer + size, sizeof(audio->sample_fmt));
+    size += sizeof(audio->sample_fmt);
+
     memcpy (&audio->sample_rate, buffer + size, sizeof(audio->sample_rate));
     size += sizeof(audio->sample_rate);
 
@@ -190,12 +193,16 @@ codec_decode_audio_data_from (int *have_data, int16_t *samples,
     memcpy (&audio->channel_layout, buffer + size, sizeof(audio->channel_layout));
     size += sizeof(audio->channel_layout);
 
-    CODEC_LOG (DEBUG, "decode_audio. sample_rate %d, channels %d, ch_layout %lld\n", audio->sample_rate, audio->channels, audio->channel_layout);
+    GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld",
+      audio->sample_fmt, audio->sample_rate, audio->channels, audio->channel_layout);
 
-    memcpy (samples, buffer + size, (*have_data));
+    memcpy (&resample_size, buffer + size, sizeof(resample_size));
+    size += sizeof(resample_size);
+    memcpy (samples, buffer + size, resample_size);
   }
 
-  return len;
+//  return len;
+  return resample_size;
 }
 
 void

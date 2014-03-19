@@ -209,7 +209,7 @@ flush_queued (GstMaruDec *marudec)
 {
   GstFlowReturn res = GST_FLOW_OK;
 
-  CODEC_LOG (DEBUG, "flush queued\n");
+  GST_DEBUG_OBJECT (marudec, "flush queued");
 
   while (marudec->queued) {
     GstBuffer *buf = GST_BUFFER_CAST (marudec->queued->data);
@@ -238,7 +238,7 @@ gst_marudec_drain (GstMaruDec *marudec)
   oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
 #endif
 
-  CODEC_LOG (DEBUG, "drain frame\n");
+  GST_DEBUG_OBJECT (marudec, "drain frame");
   {
     gint have_data, len, try = 0;
 
@@ -255,7 +255,7 @@ gst_marudec_drain (GstMaruDec *marudec)
   }
 
   if (marudec->segment.rate < 0.0) {
-    CODEC_LOG (DEBUG, "reverse playback\n");
+    GST_DEBUG_OBJECT (marudec, "reverse playback");
     flush_queued (marudec);
   }
 }
@@ -380,7 +380,7 @@ gst_marudec_init (GstMaruDec *marudec)
 
   marudec->dev = g_malloc0 (sizeof(CodecDevice));
   if (!marudec->dev) {
-    CODEC_LOG (ERR, "failed to allocate memory.\n");
+    GST_ERROR_OBJECT (marudec, "failed to allocate memory for CodecDevice");
   }
 }
 
@@ -872,7 +872,7 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
     return GST_FLOW_ERROR;
   }
 
-  CODEC_LOG (DEBUG, "outbuf size of decoded video: %d\n", pict_size);
+  GST_DEBUG_OBJECT (marudec, "outbuf size of decoded video %d", pict_size);
 
   gst_pad_set_element_private(GST_PAD_PEER(marudec->srcpad), (gpointer)marudec);
 
@@ -978,9 +978,8 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
   const GstTSInfo *out_info;
 
   decode = gst_marudec_do_qos (marudec, dec_info->timestamp, &mode_switch);
-  CODEC_LOG (DEBUG, "decode: %d\n", decode);
 
-  CODEC_LOG (DEBUG, "decode video: input buffer size: %d\n", size);
+  GST_DEBUG_OBJECT (marudec, "decode video: input buffer size %d", size);
   len =
     codec_decode_video (marudec->context, data, size,
                           dec_info->idx, in_offset, outbuf,
@@ -1008,11 +1007,6 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
 //  if (len < 0) { // have_data <= 0) {
     GST_DEBUG_OBJECT (marudec, "return flow %d, out %p, len %d",
       *ret, *outbuf, len);
-
-    CODEC_LOG (DEBUG,
-      "return flow %d, out %p, len %d, have_data: %d\n",
-      *ret, *outbuf, len, have_data);
-
     return len;
   }
 
@@ -1145,7 +1139,7 @@ gst_marudec_audio_frame (GstMaruDec *marudec, CodecElement *codec,
       new_aligned_buffer (FF_MAX_AUDIO_FRAME_SIZE,
           GST_PAD_CAPS (marudec->srcpad));
 
-  CODEC_LOG (DEBUG, "decode audio, input buffer size: %d\n", size);
+  GST_DEBUG_OBJECT (marudec, "decode audio, input buffer size %d", size);
 
   len = codec_decode_audio (marudec->context,
       (int16_t *) GST_BUFFER_DATA (*outbuf), &have_data,
@@ -1165,7 +1159,8 @@ gst_marudec_audio_frame (GstMaruDec *marudec, CodecElement *codec,
       return len;
     }
 
-    GST_BUFFER_SIZE (*outbuf) = have_data;
+    // GST_BUFFER_SIZE (*outbuf) = have_data;
+    GST_BUFFER_SIZE (*outbuf) = len;
 
     if (GST_CLOCK_TIME_IS_VALID (dec_info->timestamp)) {
       out_timestamp = dec_info->timestamp;

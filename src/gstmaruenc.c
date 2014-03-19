@@ -707,16 +707,18 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
 #if 0
   ret = ioctl(maruenc->dev->fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
   if (ret < 0) {
-    CODEC_LOG (ERR, "failed to release used buffer\n");
+    GST_ERROR_OBJECT (maruenc, "failed to release used buffer");
   }
 #endif
 
   if (coded_frame) {
     if (!is_keyframe) {
       GST_DEBUG_OBJECT (maruenc, "this frame is not a keyframe");
+
+      /* GST_BUFFER_FLAG_DELTA_UNIT
+       * - this unit cannot be decoded independently.
+       */
       GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_DELTA_UNIT);
-      // GST_BUFFER_FLAG_DELTA_UNIT
-      // - this unit cannot be decoded independently.
     }
   } else {
     GST_WARNING_OBJECT (maruenc, "codec did not provide keyframe info");

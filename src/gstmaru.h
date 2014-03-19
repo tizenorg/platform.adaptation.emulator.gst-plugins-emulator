@@ -116,7 +116,7 @@ typedef struct _AudioData {
   int32_t channels, sample_rate;
   int32_t block_align, depth;
   int32_t sample_fmt, frame_size;
-  int32_t bits_per_sample_fmt;
+  int32_t bits_per_sample_fmt, reserved;
   int64_t channel_layout;
 } AudioData;
 
@@ -169,13 +169,19 @@ enum CODEC_TYPE {
   CODEC_TYPE_ENCODE,
 };
 
-enum SAMPLT_FORMAT {
+enum AUDIO_SAMPLE_FORMAT {
   SAMPLE_FMT_NONE = -1,
   SAMPLE_FMT_U8,
   SAMPLE_FMT_S16,
   SAMPLE_FMT_S32,
   SAMPLE_FMT_FLT,
   SAMPLE_FMT_DBL,
+
+  SAMPLE_FMT_U8P,
+  SAMPLE_FMT_S16P,
+  SAMPLE_FMT_S32P,
+  SAMPLE_FMT_FLTP,
+  SAMPLE_FMT_DBLP,
   SAMPLE_FMT_NB
 };
 

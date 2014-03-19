@@ -39,16 +39,21 @@ gst_maru_smpfmt_depth (int smp_fmt)
 
   switch (smp_fmt) {
   case SAMPLE_FMT_U8:
+  case SAMPLE_FMT_U8P:
     depth = 1;
     break;
   case SAMPLE_FMT_S16:
+  case SAMPLE_FMT_S16P:
     depth = 2;
     break;
   case SAMPLE_FMT_S32:
   case SAMPLE_FMT_FLT:
+  case SAMPLE_FMT_S32P:
+  case SAMPLE_FMT_FLTP:
     depth = 4;
     break;
   case SAMPLE_FMT_DBL:
+  case SAMPLE_FMT_DBLP:
     depth = 8;
     break;
   default:
@@ -905,24 +910,30 @@ gst_maru_smpfmt_to_caps (int8_t sample_fmt, CodecContext *ctx, const char *name)
 
   switch (sample_fmt) {
   case SAMPLE_FMT_S16:
+  case SAMPLE_FMT_S16P:
     signedness = TRUE;
     bpp = 16;
     break;
   case SAMPLE_FMT_S32:
+  case SAMPLE_FMT_S32P:
     signedness = TRUE;
     bpp = 32;
     break;
   case SAMPLE_FMT_FLT:
+  case SAMPLE_FMT_FLTP:
     integer = FALSE;
     bpp = 32;
     break;
   case SAMPLE_FMT_DBL:
+  case SAMPLE_FMT_DBLP:
     integer = FALSE;
     bpp = 64;
     break;
   default:
     break;
   }
+
+  GST_DEBUG ("sample format: %d", sample_fmt);
 
   if (bpp) {
     if (integer) {

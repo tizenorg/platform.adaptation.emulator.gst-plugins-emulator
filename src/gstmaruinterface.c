@@ -307,6 +307,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
                     int in_size, CodecDevice *dev)
 {
   int len = 0, ret = 0;
+  int outbuf_size = 0;
   gpointer buffer = NULL;
   CodecBufferId opaque;
 
@@ -327,7 +328,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
 
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
-  // FIXME: how can we know output data size ?
+
   ret = ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
   if (ret < 0) {
     return -1;
@@ -336,8 +337,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   CODEC_LOG (DEBUG, "after decode_audio. ctx_id: %d, buffer = 0x%x\n",
             ctx->index, device_mem + opaque.buffer_size);
 
-  len =
-      codec_decode_audio_data_from (have_data, samples,
+  len =  codec_decode_audio_data_from (have_data, samples,
                                    &ctx->audio, device_mem + opaque.buffer_size);
 
   CODEC_LOG (DEBUG, "decode_audio. ctx_id: %d len: %d\n", ctx->index, len);
