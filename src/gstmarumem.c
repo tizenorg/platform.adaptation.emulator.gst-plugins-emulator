@@ -40,7 +40,8 @@ _codec_info_data (CodecElement *codec, gpointer buffer)
 
   CODEC_LOG (DEBUG, "enter, %s\n", __func__);
 
-  CODEC_LOG (DEBUG, "type: %d, name: %s\n", codec->codec_type, codec->name);
+  GST_INFO ("type: %d, name: %s", codec->codec_type, codec->name);
+
   memcpy (buffer + size, &codec->codec_type, sizeof(codec->codec_type));
   size += sizeof(codec->codec_type);
 
@@ -61,8 +62,8 @@ codec_init_data_to (CodecContext *ctx, CodecElement *codec, gpointer buffer)
 
   size = _codec_info_data (codec, buffer);
 
-  CODEC_LOG (INFO, "context_id: %d, name: %s, media type: %s\n",
-    ctx->index, codec->name, codec->media_type ? "AUDIO" : "VIDEO");
+  GST_INFO ("context_id: %d, name: %s, media type: %s",
+    ctx->index, codec->name, codec->media_type ? "audio" : "video");
 
   memcpy (buffer + size, ctx, sizeof(CodecContext) - 12);
   size += (sizeof(CodecContext) - 12);
@@ -81,8 +82,6 @@ codec_init_data_from (CodecContext *ctx, int media_type, gpointer buffer)
 {
   int ret = 0, size = 0;
 
-  CODEC_LOG (DEBUG, "after init. read data from device.\n");
-
   memcpy (&ret, buffer, sizeof(ret));
   size = sizeof(ret);
   if (ret < 0) {
@@ -96,14 +95,20 @@ codec_init_data_from (CodecContext *ctx, int media_type, gpointer buffer)
       size += sizeof(ctx->audio.frame_size);
 
       memcpy(&ctx->audio.bits_per_sample_fmt, buffer + size, sizeof(ctx->audio.bits_per_sample_fmt));
-#if 0
-      // TODO: check!!
-      memcpy (&ctx->audio, buffer + size, sizeof(ctx->audio));
-#endif
-    } else {
-      CODEC_LOG (DEBUG, "video type\n");
+      size += sizeof(ctx->audio.bits_per_sample_fmt);
     }
   }
+
+#if 1
+  memcpy(&ctx->codecdata_size, buffer + size, sizeof(ctx->codecdata_size));
+  size += sizeof(ctx->codecdata_size);
+
+  GST_DEBUG ("codec_init. extradata_size %d", ctx->codecdata_size);
+  if (ctx->codecdata_size > 0) {
+    ctx->codecdata = g_malloc(ctx->codecdata_size);
+    memcpy(ctx->codecdata, buffer + size, ctx->codecdata_size);
+  }
+#endif
 
   return ret;
 }
@@ -144,7 +149,7 @@ codec_decode_video_data_from (int *got_picture_ptr, VideoData *video, gpointer b
   size += sizeof(*got_picture_ptr);
   memcpy (video, buffer + size, sizeof(VideoData));
 
-  CODEC_LOG (DEBUG, "decode_video. len: %d, have_data: %d\n", len, *got_picture_ptr);
+  GST_DEBUG ("decode_video. len: %d, have_data: %d", len, *got_picture_ptr);
 
   return len;
 }
@@ -233,7 +238,8 @@ codec_encode_video_data_from (uint8_t *out_buf, int *coded_frame, int *is_keyfra
   memcpy (&len, buffer, sizeof(len));
   size = sizeof(len);
 
-  CODEC_LOG (DEBUG, "encode_video. outbuf size: %d\n", len);
+  GST_DEBUG ("encode_video. outbuf size: %d", len);
+
   if (len > 0) {
     memcpy (coded_frame, buffer + size, sizeof(int));
     size += sizeof(int);
@@ -278,7 +284,7 @@ codec_encode_audio_data_from (uint8_t *out_buf, gpointer buffer)
     memcpy (out_buf, buffer + size, len);
   }
 
-  CODEC_LOG (DEBUG, "encode_audio. outbuf size: %d\n", len);
+  GST_DEBUG ("encode_audio. outbuf size: %d", len);
 
   return len;
 }
