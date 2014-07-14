@@ -204,9 +204,10 @@ codec_decode_audio_data_from (int *have_data, int16_t *samples,
     memcpy (&resample_size, buffer + size, sizeof(resample_size));
     size += sizeof(resample_size);
     memcpy (samples, buffer + size, resample_size);
+    size += resample_size;
   }
 
-//  return len;
+  // return len;
   return resample_size;
 }
 
@@ -254,15 +255,16 @@ codec_encode_video_data_from (uint8_t *out_buf, int *coded_frame, int *is_keyfra
 }
 
 void
-codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, gpointer buffer)
+codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, int64_t timestamp, gpointer buffer)
 {
   int size = 0;
 
   size = sizeof(size);
   memcpy (buffer + size, &in_size, sizeof(in_size));
   size += sizeof(in_size);
-  memcpy (buffer + size, &max_size, sizeof(max_size));
-  size += sizeof(max_size);
+
+  memcpy (buffer + size, &timestamp, sizeof(timestamp));
+  size += sizeof(timestamp);
 
   if (in_size > 0) {
     memcpy (buffer + size, in_buf, in_size);
@@ -276,15 +278,19 @@ codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, gpointer
 int
 codec_encode_audio_data_from (uint8_t *out_buf, gpointer buffer)
 {
-  int len = 0, size = 0;
+  int ret = 0, outbuf_size = 0, size = 0;
 
-  memcpy (&len, buffer, sizeof(len));
-  size = sizeof(len);
-  if (len > 0) {
-    memcpy (out_buf, buffer + size, len);
+  memcpy (&ret, buffer, sizeof(ret));
+  size = sizeof(ret);
+  if (ret == 0) {
+    memcpy (&outbuf_size, buffer + size, sizeof(outbuf_size));
+    size += sizeof(outbuf_size);
+    if (outbuf_size > 0) {
+      memcpy (out_buf, buffer + size, outbuf_size);
+    }
   }
 
-  GST_DEBUG ("encode_audio. outbuf size: %d", len);
+  GST_DEBUG ("encode_audio. ret: %d outbuf size: %d", ret, outbuf_size);
 
-  return len;
+  return outbuf_size;
 }

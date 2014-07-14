@@ -330,7 +330,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
     ctx->index, device_mem + opaque.buffer_size);
 
   len = codec_decode_audio_data_from (have_data, samples,
-                                   &ctx->audio, device_mem + opaque.buffer_size);
+    &ctx->audio, device_mem + opaque.buffer_size);
 
   GST_DEBUG ("decode_audio 3. ctx_id: %d len: %d", ctx->index, len);
 
@@ -387,9 +387,10 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
 int
 codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
                     int max_size, uint8_t *in_buf,
-                    int in_size, CodecDevice *dev)
+                    int in_size, int64_t timestamp,
+                    CodecDevice *dev)
 {
-  int len = 0, ret = 0;
+  int ret = 0;
   gpointer buffer = NULL;
   CodecBufferId opaque;
 
@@ -400,7 +401,7 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
     return -1;
   }
 
-  codec_encode_audio_data_to (in_size, max_size, in_buf, buffer);
+  codec_encode_audio_data_to (in_size, max_size, in_buf, timestamp, buffer);
 
   dev->mem_info.offset = GET_OFFSET(buffer);
   _codec_invoke_qemu (ctx->index, CODEC_ENCODE_AUDIO, GET_OFFSET(buffer), dev->fd);
@@ -415,11 +416,11 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   GST_DEBUG ("encode_audio. mem_offset = 0x%x", opaque.buffer_size);
 
-  len = codec_encode_audio_data_from (out_buf, device_mem + opaque.buffer_size);
+  ret = codec_encode_audio_data_from (out_buf, device_mem + opaque.buffer_size);
 
   release_device_mem(dev->fd, device_mem + opaque.buffer_size);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
-  return len;
+  return ret;
 }

@@ -1,12 +1,6 @@
-/*
- * GStreamer codec plugin for Tizen Emulator.
- *
- * Copyright (C) 2013 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact:
- * KiTae Kim <kt920.kim@samsung.com>
- * SeokYeon Hwang <syeon.hwang@samsung.com>
- * YeongKyoon Lee <yeongkyoon.lee@samsung.com>
+/* GStreamer
+ * Copyright (C) <1999> Erik Walthinsen <omega@cse.ogi.edu>
+ * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,10 +16,6 @@
  * License along with this library; if not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- *
- * Contributors:
- * - S-Core Co., Ltd
- *
  */
 
 #include "gstmaruutils.h"
@@ -205,7 +195,7 @@ gst_maru_codectype_to_audio_caps (CodecContext *ctx, const char *name,
   GstCaps *caps = NULL;
 
   GST_DEBUG ("context: %p, codec: %s, encode: %d, codec: %p",
-      ctx, name, encode, codec);
+            ctx, name, encode, codec);
 
   if (ctx) {
     caps = gst_maru_smpfmt_to_caps (ctx->audio.sample_fmt, ctx, name);
@@ -215,8 +205,17 @@ gst_maru_codectype_to_audio_caps (CodecContext *ctx, const char *name,
 
     caps = gst_caps_new_empty ();
     for (i = 0; codec->sample_fmts[i] != -1; i++) {
+      int8_t sample_fmt = -1;
+
+      sample_fmt = codec->sample_fmts[i];
+      if (!strcmp(name, "aac") && encode) {
+        sample_fmt = SAMPLE_FMT_S16;
+        GST_DEBUG ("convert sample_fmt. codec %s, encode %d, sample_fmt %d",
+                  name, encode, sample_fmt);
+      }
+
       temp =
-          gst_maru_smpfmt_to_caps (codec->sample_fmts[i], ctx, name);
+          gst_maru_smpfmt_to_caps (sample_fmt, ctx, name);
       if (temp != NULL) {
         gst_caps_append (caps, temp);
       }
@@ -395,7 +394,6 @@ gst_maru_caps_to_smpfmt (const GstCaps *caps, CodecContext *ctx, gboolean raw)
   gst_structure_get_int (str, "channels", &ctx->audio.channels);
   gst_structure_get_int (str, "rate", &ctx->audio.sample_rate);
   gst_structure_get_int (str, "block_align", &ctx->audio.block_align);
-//  gst_structure_get_int (str, "bitrate", &ctx->audio.bit_rate);
   gst_structure_get_int (str, "bitrate", &ctx->bit_rate);
 
   if (!raw) {
@@ -1124,7 +1122,21 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
           G_TYPE_INT, version, "block_align", GST_TYPE_INT_RANGE, 0, G_MAXINT,
           "bitrate", GST_TYPE_INT_RANGE, 0, G_MAXINT, NULL);
   } else {
-    GST_ERROR("failed to new caps for %s.\n", name);
+    GST_ERROR("failed to new caps for %s", name);
+  }
+
+  if (caps != NULL) {
+    if (ctx && ctx->codecdata_size > 0) {
+      GstBuffer *data = gst_buffer_new_and_alloc (ctx->codecdata_size);
+
+      memcpy (GST_BUFFER_DATA(data), ctx->codecdata, ctx->codecdata_size);
+      gst_caps_set_simple (caps, "codec_data", GST_TYPE_BUFFER, data, NULL);
+
+      gst_buffer_unref (data);
+    }
+    GST_LOG ("caps for codec %s %" GST_PTR_FORMAT, name, caps);
+  } else {
+    GST_LOG ("No caps found for codec %s", name);
   }
 
   return caps;

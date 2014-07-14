@@ -32,8 +32,6 @@
 #define __GST_MARU_UTIL_H__
 
 #include "gstmaru.h"
-
-// libav
 #include "audioconvert.h"
 
 /* Audio channel masks */

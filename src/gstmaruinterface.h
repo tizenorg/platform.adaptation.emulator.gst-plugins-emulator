@@ -126,7 +126,8 @@ codec_encode_video (CodecContext *ctx, uint8_t*out_buf,
 int
 codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
                     int out_size, uint8_t *in_buf,
-                    int in_size, CodecDevice *dev);
+                    int in_size, int64_t timestamp,
+                    CodecDevice *dev);
 
 void
 codec_picture_copy (CodecContext *ctx, uint8_t *pict,

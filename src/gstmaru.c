@@ -1,12 +1,6 @@
-/*
- * Emulator
- *
- * Copyright (C) 2013 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact:
- * KiTae Kim <kt920.kim@samsung.com>
- * SeokYeon Hwang <syeon.hwang@samsung.com>
- * YeongKyoon Lee <yeongkyoon.lee@samsung.com>
+/* GStreamer
+ * Copyright (C) <1999> Erik Walthinsen <omega@cse.ogi.edu>
+ * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -28,11 +22,8 @@
  * object definition and other useful things.
  */
 
-/*
- *
- * Contributors:
- * - S-Core Co., Ltd
- *
+/* Modifications by Samsung Electronics Co., Ltd.
+ * 1. Get available Video/Audio Codecs from Qemu
  */
 
 #include "gstmaru.h"
@@ -73,14 +64,13 @@ gst_maru_codec_element_init ()
 
   fd = open (CODEC_DEV, O_RDWR);
   if (fd < 0) {
-    // perror ("[gst-maru] failed to open codec device");
+    perror ("[gst-maru] failed to open codec device");
     GST_ERROR ("failed to open codec device");
     return FALSE;
   }
 
   ioctl (fd, CODEC_CMD_GET_VERSION, &version);
   if (version != CODEC_VER) {
-    // CODEC_LOG (INFO, "version conflict between device: %d, plugin: %d\n", version, CODEC_VER);
     GST_LOG ("version conflict between device: %d, plugin: %d", version, CODEC_VER);
     close (fd);
     return FALSE;
@@ -88,27 +78,24 @@ gst_maru_codec_element_init ()
 
   buffer = mmap (NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (buffer == MAP_FAILED) {
-    // perror ("[gst-maru] failure memory mapping.");
+    perror ("[gst-maru] memory mapping failure");
     GST_ERROR ("memory mapping failure");
     close (fd);
     return FALSE;
   }
 
-  // CODEC_LOG (DEBUG, "request a device to get codec element.\n");
   GST_DEBUG ("request a device to get codec element");
   if (ioctl(fd, CODEC_CMD_GET_ELEMENT, &data_length) < 0) {
-    // perror ("[gst-maru] failed to get codec elements");
+    perror ("[gst-maru] failed to get codec elements");
     GST_ERROR ("failed to get codec elements");
     munmap (buffer, 4096);
     close (fd);
     return FALSE;
   }
 
-  // CODEC_LOG (DEBUG, "sizeof codec elements. %d\n", data_length);
   GST_DEBUG ("total size of codec elements %d", data_length);
   elem = g_malloc0 (data_length);
   if (!elem) {
-    // CODEC_LOG (ERR, "Failed to allocate memory.\n");
     GST_ERROR ("failed to allocate memory for codec elements");
     munmap (buffer, 4096);
     close (fd);
@@ -116,7 +103,6 @@ gst_maru_codec_element_init ()
   }
 
   if (ioctl(fd, CODEC_CMD_GET_ELEMENT_DATA, elem) < 0) {
-    // CODEC_LOG (ERR, "failed to get codec elements\n");
     GST_ERROR ("failed to get codec elements");
     munmap (buffer, 4096);
     close (fd);
@@ -183,7 +169,7 @@ GST_PLUGIN_DEFINE (
   "tizen-emul",
   "Codecs for Tizen Emulator",
   plugin_init,
-  "0.2.8",
+  "0.2.11",
   "LGPL",
   "gst-plugins-emulator",
   "http://www.tizen.org"

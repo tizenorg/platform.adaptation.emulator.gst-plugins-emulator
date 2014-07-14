@@ -1,12 +1,6 @@
-/*
- * GStreamer codec plugin for Tizen Emulator.
- *
- * Copyright (C) 2013 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact:
- * KiTae Kim <kt920.kim@samsung.com>
- * SeokYeon Hwang <syeon.hwang@samsung.com>
- * YeongKyoon Lee <yeongkyoon.lee@samsung.com>
+/* GStreamer
+ * Copyright (C) <1999> Erik Walthinsen <omega@cse.ogi.edu>
+ * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,10 +16,6 @@
  * License along with this library; if not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- *
- * Contributors:
- * - S-Core Co., Ltd
- *
  */
 
 #include "gstmarudevice.h"
@@ -417,7 +407,6 @@ gst_maruenc_getcaps (GstPad *pad)
     ctx->video.ticks_per_frame = 1;
     ctx->bit_rate = DEFAULT_VIDEO_BITRATE;
 
-//  ctx->strict_std_compliance = -1;
     ctx->video.pix_fmt = pixfmt;
 
     GST_DEBUG ("Attempting to open codec");
@@ -626,11 +615,9 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   GstMaruEnc *maruenc = (GstMaruEnc *) (GST_PAD_PARENT (pad));
   GstBuffer *outbuf = NULL;
   gint ret_size = 0, frame_size = 0;
-  int ret = 0;
+  int coded_frame = 0, is_keyframe = 0;
   uint32_t mem_offset = 0;
   uint8_t *working_buf = NULL;
-
-  int coded_frame, is_keyframe;
 
   GST_DEBUG_OBJECT (maruenc,
       "Received buffer of time %" GST_TIME_FORMAT,
@@ -758,7 +745,7 @@ gst_maruenc_encode_audio (GstMaruEnc *maruenc, guint8 *audio_in,
   }
 
   res = codec_encode_audio (maruenc->context, audio_out, max_size,
-                                  audio_in, in_size, maruenc->dev);
+                            audio_in, in_size, timestamp, maruenc->dev);
 
   if (res < 0) {
     GST_ERROR_OBJECT (maruenc, "Failed to encode buffer: %d", res);
@@ -787,7 +774,7 @@ static GstFlowReturn
 gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
 {
   GstMaruEnc *maruenc;
-//  GstMaruEncClass *oclass;
+  // GstMaruEncClass *oclass;
   GstClockTime timestamp, duration;
   guint in_size, frame_size;
   gint osize;
@@ -798,7 +785,7 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
   CodecContext *ctx;
 
   maruenc = (GstMaruEnc *) (GST_OBJECT_PARENT (pad));
-//  oclass = (GstMaruEncClass *) G_OBJECT_GET_CLASS (maruenc);
+  // oclass = (GstMaruEncClass *) G_OBJECT_GET_CLASS (maruenc);
 
   ctx = maruenc->context;
 

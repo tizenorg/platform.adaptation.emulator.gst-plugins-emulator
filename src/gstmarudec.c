@@ -1,12 +1,6 @@
-/*
- * GStreamer codec plugin for Tizen Emulator.
- *
- * Copyright (C) 2013 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact:
- * KiTae Kim <kt920.kim@samsung.com>
- * SeokYeon Hwang <syeon.hwang@samsung.com>
- * YeongKyoon Lee <yeongkyoon.lee@samsung.com>
+/* GStreamer
+ * Copyright (C) <1999> Erik Walthinsen <omega@cse.ogi.edu>
+ * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,22 +16,19 @@
  * License along with this library; if not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- *
- * Contributors:
- * - S-Core Co., Ltd
- *
  */
 
-// #include "gstmaru.h"
+/* Modifications by Samsung Electronics Co., Ltd.
+ * 1. Provide a hardware buffer in order to avoid additional memcpy operations.
+ */
+
 #include "gstmarudevice.h"
 #include "gstmaruutils.h"
 #include "gstmaruinterface.h"
-// #include "gstmarudevice.h"
 
 #define GST_MARUDEC_PARAMS_QDATA g_quark_from_static_string("marudec-params")
 
 /* indicate dts, pts, offset in the stream */
-
 #define GST_TS_INFO_NONE &ts_info_none
 static const GstTSInfo ts_info_none = { -1, -1, -1, -1 };
 
