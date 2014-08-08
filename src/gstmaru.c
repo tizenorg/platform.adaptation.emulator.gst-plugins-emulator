@@ -49,10 +49,12 @@ static GList *codec_element = NULL;
 static gboolean codec_element_init = FALSE;
 static GMutex gst_maru_mutex;
 
+int device_version;
+
 static gboolean
 gst_maru_codec_element_init ()
 {
-  int fd = 0, version = 0;
+  int fd = 0;
   int i, elem_cnt = 0;
   uint32_t data_length = 0;
   void *buffer = MAP_FAILED;
@@ -69,12 +71,17 @@ gst_maru_codec_element_init ()
     return FALSE;
   }
 
-  ioctl (fd, CODEC_CMD_GET_VERSION, &version);
-  if (version != CODEC_VER) {
-    GST_LOG ("version conflict between device: %d, plugin: %d", version, CODEC_VER);
+  ioctl (fd, CODEC_CMD_GET_VERSION, &device_version);
+  GST_LOG ("pluigin version is [%u]", CODEC_VER);
+  GST_LOG ("device version is [%u]", device_version);
+  // FIXME: check version
+/*
+  if (device_version < CODEC_VER) {
+    GST_ERROR ("plugin version [%u] is not support device version [%u]", CODEC_VER, device_version);
     close (fd);
     return FALSE;
   }
+*/
 
   buffer = mmap (NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (buffer == MAP_FAILED) {
