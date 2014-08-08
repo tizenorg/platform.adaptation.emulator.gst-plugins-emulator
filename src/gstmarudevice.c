@@ -71,7 +71,7 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   // FIXME
   dev->buf_size = CODEC_DEVICE_MEM_SIZE;
   GST_DEBUG ("mmap_size: %d", dev->buf_size);
-  dev->mem_info.index = dev->buf_size;
+//  dev->mem_info.index = dev->buf_size;
 
   // g_mutex_lock (&gst_avcodec_mutex);
   if (device_mem == MAP_FAILED) {

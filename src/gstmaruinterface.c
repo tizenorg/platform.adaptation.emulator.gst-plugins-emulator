@@ -52,26 +52,47 @@ typedef struct _CodecBufferId {
   uint32_t  buffer_size;
 } CodecBufferId;
 
+typedef struct _CodecIOParams {
+  int32_t   api_index;
+  int32_t   ctx_index;
+  uint32_t  mem_offset;
+
+  CodecBufferId buffer_id;
+} CodecIOParams;
+
+
 #define CODEC_META_DATA_SIZE    256
 #define GET_OFFSET(buffer)      ((uint32_t)buffer - (uint32_t)device_mem)
 #define SMALLDATA               0
 
-static void
-_codec_invoke_qemu (int32_t ctx_index, int32_t api_index,
-                          uint32_t mem_offset, int fd)
+static int
+_codec_invoke_qemu(int32_t ctx_index, int32_t api_index,
+                          uint32_t mem_offset, int fd, CodecBufferId *buffer_id)
 {
   CodecIOParams ioparam = { 0 };
+  int ret;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   ioparam.api_index = api_index;
   ioparam.ctx_index = ctx_index;
   ioparam.mem_offset = mem_offset;
-  if (ioctl (fd, CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER, &ioparam) < 0) {
-    GST_ERROR ("failed to invoke codec APIs");
+
+  if (buffer_id) {
+    ioparam.buffer_id.buffer_index = buffer_id->buffer_index;
+    ioparam.buffer_id.buffer_size = buffer_id->buffer_size;
+  }
+
+  ret = ioctl(fd, CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER, &ioparam);
+
+  if (buffer_id) {
+    buffer_id->buffer_index = ioparam.buffer_id.buffer_index;
+    buffer_id->buffer_size = ioparam.buffer_id.buffer_size;
   }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
+
+  return ret;
 }
 
 static int
@@ -127,24 +148,27 @@ GstFlowReturn
 codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
 {
+  int ret = 0;
   struct mem_info info;
   CodecBufferId opaque;
-  int ret = 0;
   GstMaruDec *marudec;
+  CodecContext *ctx;
+  CodecDevice *dev;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   *buf = gst_buffer_new ();
 
   marudec = (GstMaruDec *)gst_pad_get_element_private(pad);
+  *ctx = marudec->context;
+  *dev = marudec->dev;
 
-  opaque.buffer_index = marudec->context->index;
+  opaque.buffer_index = ctx->index;
   opaque.buffer_size = size;
 
-  GST_DEBUG ("buffer_and_copy. ctx_id: %d", marudec->context->index);
-  _codec_invoke_qemu (marudec->context->index, CODEC_PICTURE_COPY, 0, marudec->dev->fd);
+  GST_DEBUG ("buffer_and_copy. ctx_id: %d", ctx->index);
 
-  ret = ioctl (marudec->dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
+  ret = _codec_invoke_qemu(ctx->index, CODEC_PICTURE_COPY, 0, dev->fd, &opaque);
 
   if (ret < 0) {
     GST_DEBUG ("failed to get available buffer");
@@ -156,7 +180,7 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     GST_BUFFER_FREE_FUNC (*buf) = g_free;
 
     memcpy (info.start, device_mem + opaque.buffer_size, size);
-    release_device_mem(marudec->dev->fd, device_mem + opaque.buffer_size);
+    release_device_mem(dev->fd, device_mem + opaque.buffer_size);
 
     GST_DEBUG ("secured last buffer!! Use heap buffer");
   } else {
@@ -188,6 +212,7 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   int opened = 0;
   gpointer buffer = NULL;
   CodecBufferId opaque;
+  int ret;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
@@ -207,14 +232,12 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
 
   codec_init_data_to (ctx, codec, buffer);
 
-  dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_invoke_qemu (ctx->index, CODEC_INIT, GET_OFFSET(buffer), dev->fd);
-
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
 
-  if (ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque) < 0) {
-    GST_ERROR ("failed to accquire a memory block");
+  _codec_invoke_qemu (ctx->index, CODEC_INIT, GET_OFFSET(buffer), dev->fd, &opaque);
+
+  if (ret < 0) {
     return -1;
   }
 
@@ -240,7 +263,7 @@ codec_deinit (CodecContext *ctx, CodecDevice *dev)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   GST_INFO ("close context %d", ctx->index);
-  _codec_invoke_qemu (ctx->index, CODEC_DEINIT, 0, dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_DEINIT, 0, dev->fd, NULL);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -251,7 +274,7 @@ codec_flush_buffers (CodecContext *ctx, CodecDevice *dev)
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   GST_DEBUG ("flush buffers of context: %d", ctx->index);
-  _codec_invoke_qemu (ctx->index, CODEC_FLUSH_BUFFERS, 0, dev->fd);
+  _codec_invoke_qemu (ctx->index, CODEC_FLUSH_BUFFERS, 0, dev->fd, NULL);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -275,14 +298,12 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
 
   codec_decode_video_data_to (in_size, idx, in_offset, in_buf, buffer);
 
-  dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_invoke_qemu (ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd);
-
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
 
-  if (ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque) < 0) {
-    GST_ERROR ("failed to accquire a memory block");
+  ret = _codec_invoke_qemu(ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd, &opaque);
+
+  if (ret < 0) {
     return -1;
   }
 
@@ -315,13 +336,11 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   GST_DEBUG ("decode_audio 1. in_buffer size %d", in_size);
   codec_decode_audio_data_to (in_size, in_buf, buffer);
 
-  dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_invoke_qemu (ctx->index, CODEC_DECODE_AUDIO, GET_OFFSET(buffer), dev->fd);
-
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
 
-  ret = ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
+  ret = _codec_invoke_qemu(ctx->index, CODEC_DECODE_AUDIO, GET_OFFSET(buffer), dev->fd, &opaque);
+
   if (ret < 0) {
     return -1;
   }
@@ -362,20 +381,19 @@ codec_encode_video (CodecContext *ctx, uint8_t *out_buf,
 
   codec_encode_video_data_to (in_size, in_timestamp, in_buf, buffer);
 
-  dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_invoke_qemu (ctx->index, CODEC_ENCODE_VIDEO, GET_OFFSET(buffer), dev->fd);
-
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
+
   // FIXME: how can we know output data size ?
-  ret = ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
+  ret = _codec_invoke_qemu(ctx->index, CODEC_ENCODE_VIDEO, GET_OFFSET(buffer), dev->fd, &opaque);
+
   if (ret < 0) {
     return -1;
   }
+
   GST_DEBUG ("encode_video. mem_offset = 0x%x", opaque.buffer_size);
 
   len = codec_encode_video_data_from (out_buf, coded_frame, is_keyframe, device_mem + opaque.buffer_size);
-  dev->mem_info.offset = opaque.buffer_size;
 
   release_device_mem(dev->fd, device_mem + opaque.buffer_size);
 
@@ -403,13 +421,11 @@ codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   codec_encode_audio_data_to (in_size, max_size, in_buf, timestamp, buffer);
 
-  dev->mem_info.offset = GET_OFFSET(buffer);
-  _codec_invoke_qemu (ctx->index, CODEC_ENCODE_AUDIO, GET_OFFSET(buffer), dev->fd);
-
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
 
-  ret = ioctl (dev->fd, CODEC_CMD_PUT_DATA_INTO_BUFFER, &opaque);
+  ret = _codec_invoke_qemu(ctx->index, CODEC_ENCODE_AUDIO, GET_OFFSET(buffer), dev->fd, &opaque);
+
   if (ret < 0) {
     return -1;
   }

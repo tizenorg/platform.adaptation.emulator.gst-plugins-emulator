@@ -48,6 +48,8 @@ GST_DEBUG_CATEGORY_EXTERN (maru_debug);
 
 G_BEGIN_DECLS
 
+extern int device_version;
+
 enum codec_log_level {
   ERR,
   WARN,
@@ -57,6 +59,8 @@ enum codec_log_level {
 
 #define CODEC_DEV   "/dev/brillcodec"
 #define CODEC_VER   2
+
+#define CHECK_VERSION(version)        (device_version > version)
 
 #define CODEC_LOG(level, fmt, ...) \
   do { \
@@ -75,22 +79,10 @@ enum codec_log_level {
 #define ROUND_UP_8(x) ROUND_UP_X(x, 3)
 #define DIV_ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) >> (x))
 
-typedef struct _CodecIOParams {
-  int32_t   api_index;
-  int32_t   ctx_index;
-  uint32_t  mem_offset;
-} CodecIOParams;
-
-typedef struct _CodecDeviceMem {
-  uint32_t  index;
-  uint32_t  offset;
-} CodecDeviceMem;
-
 typedef struct _CodecDevice {
   int       fd;
   uint8_t   *buf;
   uint32_t  buf_size;
-  CodecDeviceMem mem_info;
 } CodecDevice;
 
 typedef struct _CodecElement {
