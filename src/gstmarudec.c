@@ -961,43 +961,35 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
     const GstTSInfo *dec_info, gint64 in_offset, GstBuffer **outbuf,
     GstFlowReturn *ret)
 {
-  gint len = -1, have_data;
+  gint len = -1;
   gboolean mode_switch;
   gboolean decode;
   GstClockTime out_timestamp, out_duration, out_pts;
   gint64 out_offset;
   const GstTSInfo *out_info;
+  int have_data;
 
   decode = gst_marudec_do_qos (marudec, dec_info->timestamp, &mode_switch);
 
+  if (decode) {
+    // FIXME
+  }
+
   GST_DEBUG_OBJECT (marudec, "decode video: input buffer size %d", size);
-  len =
-    codec_decode_video (marudec->context, data, size,
-                          dec_info->idx, in_offset, outbuf,
-                          &have_data, marudec->dev);
-#if 0
-  // skip_frame
-  if (!decode) {
-  }
-#endif
-  GST_DEBUG_OBJECT (marudec, "after decode: len %d, have_data %d",
-    len, have_data);
 
-#if 0
-  if (len < 0 && (mode_switch || marudec->context->skip_frame)) {
-    len = 0;
+  len = codec_decode_video (marudec, data, size,
+        dec_info->idx, in_offset, outbuf, &have_data);
+  if (len < 0 || !have_data) {
+    return len;
   }
 
-  if (len > 0 && have_data <= 0 && (mode_switch
-      || marudec->context->skip_frame)) {
-    marudec->last_out = -1;
-  }
-#endif
+  *ret = get_output_buffer (marudec, outbuf);
 
-  if (len < 0 || have_data <= 0) {
-//  if (len < 0) { // have_data <= 0) {
+  if (G_UNLIKELY (*ret != GST_FLOW_OK)) {
+    GST_DEBUG_OBJECT (marudec, "no output buffer");
+    len = -1;
     GST_DEBUG_OBJECT (marudec, "return flow %d, out %p, len %d",
-      *ret, *outbuf, len);
+        *ret, *outbuf, len);
     return len;
   }
 
@@ -1005,15 +997,6 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
   out_pts = out_info->timestamp;
   out_duration = out_info->duration;
   out_offset = out_info->offset;
-
-  *ret = get_output_buffer (marudec, outbuf);
-  if (G_UNLIKELY (*ret != GST_FLOW_OK)) {
-    GST_DEBUG_OBJECT (marudec, "no output buffer");
-    len = -1;
-    GST_DEBUG_OBJECT (marudec, "return flow %d, out %p, len %d",
-      *ret, *outbuf, len);
-    return len;
-  }
 
   /* Timestamps */
   out_timestamp = -1;
@@ -1061,11 +1044,6 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
   } else if (GST_CLOCK_TIME_IS_VALID (dec_info->duration)) {
     GST_LOG_OBJECT (marudec, "Using in_duration");
     out_duration = dec_info->duration;
-#if 0
-  } else if (GST_CLOCK_TIME_IS_VALID (marudec->last_diff)) {
-    GST_LOG_OBJECT (marudec, "Using last-diff");
-    out_duration = marudec->last_diff;
-#endif
   } else {
     if (marudec->format.video.fps_n != -1 &&
         (marudec->format.video.fps_n != 1000 &&
@@ -1086,19 +1064,6 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
       }
     }
   }
-
-#if 0
-  if (GST_CLOCK_TIME_IS_VALID (out_duration)) {
-    out_duration += out_duration * marudec->picture->repeat_pict / 2;
-  }
-  GST_BUFFER_DURATION (*outbuf) = out_duration;
-
-  if (out_timestamp != -1 && out_duration != -1 && out_duration != 0) {
-    marudec->next_out = out_timestamp + out_duration;
-  } else {
-    marudec->next_out = -1;
-  }
-#endif
 
   if (G_UNLIKELY (!clip_video_buffer (marudec, *outbuf, out_timestamp,
       out_duration))) {
