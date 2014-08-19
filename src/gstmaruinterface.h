@@ -97,6 +97,9 @@ typedef struct _GstMaruDec
   /* reverse playback queue */
   GList *queued;
 
+  // decode result
+  bool is_last_buffer;
+  int mem_offset;
 } GstMaruDec;
 
 int
@@ -106,10 +109,8 @@ void
 codec_deinit (CodecContext *ctx, CodecDevice *dev);
 
 int
-codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
-                    gint idx, gint64 in_offset, GstBuffer **out_buf,
-                    int *got_picture_ptr, CodecDevice *dev);
-
+codec_decode_video (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
+                    gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data);
 
 int
 codec_decode_audio (CodecContext *ctx, int16_t *samples,
