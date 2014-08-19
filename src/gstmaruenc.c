@@ -617,7 +617,6 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   gint ret_size = 0, frame_size = 0;
   int coded_frame = 0, is_keyframe = 0;
   uint32_t mem_offset = 0;
-  uint8_t *working_buf = NULL;
 
   GST_DEBUG_OBJECT (maruenc,
       "Received buffer of time %" GST_TIME_FORMAT,

@@ -30,17 +30,12 @@
 
 #include "gstmaru.h"
 #include "gstmaruinterface.h"
+#include "gstmaruutils.h"
 #include "gstmarumem.h"
 #include "gstmarudevice.h"
 
 extern int device_fd;
 extern gpointer device_mem;
-
-struct mem_info {
-    gpointer start;
-    uint32_t offset;
-    uint32_t size;
-};
 
 typedef struct _CodecHeader {
   int32_t   api_index;
@@ -65,11 +60,13 @@ typedef struct _CodecIOParams {
 #define GET_OFFSET(buffer)      ((uint32_t)buffer - (uint32_t)device_mem)
 #define SMALLDATA               0
 
+#define OFFSET_PICTURE_BUFFER   0x100
+
 static int
 _codec_invoke_qemu(int32_t ctx_index, int32_t api_index,
                           uint32_t mem_offset, int fd, CodecBufferId *buffer_id)
 {
-  CodecIOParams ioparam = { 0 };
+  CodecIOParams ioparam = { 0, };
   int ret;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
@@ -139,7 +136,11 @@ codec_buffer_free (gpointer start)
 {
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  release_device_mem (device_fd, start);
+  if (use_new_decode_api()) {
+    release_device_mem (device_fd, start - OFFSET_PICTURE_BUFFER); // FIXME
+  } else {
+    release_device_mem (device_fd, start);
+  }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -148,8 +149,8 @@ GstFlowReturn
 codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
 {
-  int ret = 0;
-  struct mem_info info;
+  bool is_last_buffer = 0;
+  int mem_offset;
   CodecBufferId opaque;
   GstMaruDec *marudec;
   CodecContext *ctx;
@@ -160,40 +161,57 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   *buf = gst_buffer_new ();
 
   marudec = (GstMaruDec *)gst_pad_get_element_private(pad);
-  *ctx = marudec->context;
-  *dev = marudec->dev;
+  dev = marudec->dev;
 
-  opaque.buffer_index = ctx->index;
-  opaque.buffer_size = size;
+  if (use_new_decode_api()) {
+    is_last_buffer = marudec->is_last_buffer;
+    mem_offset = marudec->mem_offset;
+  } else {
+    ctx = marudec->context;
 
-  GST_DEBUG ("buffer_and_copy. ctx_id: %d", ctx->index);
+    opaque.buffer_index = ctx->index;
+    opaque.buffer_size = size;
 
-  ret = _codec_invoke_qemu(ctx->index, CODEC_PICTURE_COPY, 0, dev->fd, &opaque);
+    GST_DEBUG ("buffer_and_copy. ctx_id: %d", ctx->index);
 
-  if (ret < 0) {
-    GST_DEBUG ("failed to get available buffer");
-  } else if (ret == 1) {
+    int ret = _codec_invoke_qemu(ctx->index, CODEC_PICTURE_COPY, 0, dev->fd, &opaque);
+    if (ret < 0) {
+      GST_DEBUG ("failed to get available buffer");
+      return GST_FLOW_ERROR;
+    }
+    is_last_buffer = ret;
+    mem_offset = opaque.buffer_size;
+  }
+
+  gpointer *buffer = NULL;
+  if (is_last_buffer) {
     // FIXME: we must aligned buffer offset.
-    info.start = g_malloc (size);
-    info.offset = 0;
+    buffer = g_malloc (size);
 
     GST_BUFFER_FREE_FUNC (*buf) = g_free;
 
-    memcpy (info.start, device_mem + opaque.buffer_size, size);
-    release_device_mem(dev->fd, device_mem + opaque.buffer_size);
+    if (use_new_decode_api()) {
+      memcpy (buffer, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
+    } else {
+      memcpy (buffer, device_mem + mem_offset, size);
+    }
+    release_device_mem(dev->fd, device_mem + mem_offset);
 
     GST_DEBUG ("secured last buffer!! Use heap buffer");
   } else {
     // address of "device_mem" and "opaque" is aleady aligned.
-    info.start = (gpointer)(device_mem + opaque.buffer_size);
-    info.offset = opaque.buffer_size;
+    if (use_new_decode_api()) {
+      buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
+    } else {
+      buffer = (gpointer)(device_mem + mem_offset);
+    }
 
     GST_BUFFER_FREE_FUNC (*buf) = codec_buffer_free;
 
-    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", info.start, info.offset);
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (intptr_t)buffer, mem_offset);
   }
 
-  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = info.start;
+  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = buffer;
   GST_BUFFER_SIZE (*buf) = size;
   GST_BUFFER_OFFSET (*buf) = offset;
 
@@ -235,7 +253,7 @@ codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   opaque.buffer_index = ctx->index;
   opaque.buffer_size = SMALLDATA;
 
-  _codec_invoke_qemu (ctx->index, CODEC_INIT, GET_OFFSET(buffer), dev->fd, &opaque);
+  ret = _codec_invoke_qemu (ctx->index, CODEC_INIT, GET_OFFSET(buffer), dev->fd, &opaque);
 
   if (ret < 0) {
     return -1;
@@ -280,13 +298,14 @@ codec_flush_buffers (CodecContext *ctx, CodecDevice *dev)
 }
 
 int
-codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
-                    gint idx, gint64 in_offset, GstBuffer **out_buf,
-                    int *got_picture_ptr, CodecDevice *dev)
+codec_decode_video (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
+                    gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data)
 {
+  CodecContext *ctx = marudec->context;
+  CodecDevice *dev = marudec->dev;
   int len = 0, ret = 0;
   gpointer buffer = NULL;
-  CodecBufferId opaque;
+  CodecBufferId opaque = { 0, };
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
@@ -299,17 +318,43 @@ codec_decode_video (CodecContext *ctx, uint8_t *in_buf, int in_size,
   codec_decode_video_data_to (in_size, idx, in_offset, in_buf, buffer);
 
   opaque.buffer_index = ctx->index;
-  opaque.buffer_size = SMALLDATA;
-
-  ret = _codec_invoke_qemu(ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd, &opaque);
-
-  if (ret < 0) {
-    return -1;
+  if (use_new_decode_api()) {
+    int picture_size = gst_maru_avpicture_size (ctx->video.pix_fmt,
+        ctx->video.width, ctx->video.height);
+    if (picture_size < 0) {
+      opaque.buffer_size = SMALLDATA;
+    } else {
+      opaque.buffer_size = picture_size;
+    }
+    ret = _codec_invoke_qemu(ctx->index, CODEC_DECODE_VIDEO2, GET_OFFSET(buffer), dev->fd, &opaque);
+  } else {
+    opaque.buffer_size = SMALLDATA;
+    ret = _codec_invoke_qemu(ctx->index, CODEC_DECODE_VIDEO, GET_OFFSET(buffer), dev->fd, &opaque);
   }
 
-  len = codec_decode_video_data_from (got_picture_ptr, &ctx->video, device_mem + opaque.buffer_size);
+  if (ret < 0) {
+    // FIXME:
+    return -1;
+  }
+  len = codec_decode_video_data_from (have_data, &ctx->video, device_mem + opaque.buffer_size);
 
-  release_device_mem(dev->fd, device_mem + opaque.buffer_size);
+  GST_DEBUG_OBJECT (marudec, "after decode: len %d, have_data %d",
+        len, *have_data);
+  if (len < 0 || *have_data <= 0) {
+    GST_DEBUG_OBJECT (marudec, "return flow %d, out %p, len %d",
+        ret, *out_buf, len);
+
+    release_device_mem(dev->fd, device_mem + opaque.buffer_size);
+
+    return len;
+  }
+
+  if (use_new_decode_api()) {
+    marudec->is_last_buffer = ret;
+    marudec->mem_offset = opaque.buffer_size;
+  } else {
+    release_device_mem(dev->fd, device_mem + opaque.buffer_size);
+  }
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 

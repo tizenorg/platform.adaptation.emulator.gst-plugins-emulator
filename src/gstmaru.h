@@ -32,6 +32,7 @@
 #define __GST_MARU_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,7 +61,7 @@ enum codec_log_level {
 #define CODEC_DEV   "/dev/brillcodec"
 #define CODEC_VER   2
 
-#define CHECK_VERSION(version)        (device_version > version)
+#define CHECK_VERSION(version)        (device_version >= version)
 
 #define CODEC_LOG(level, fmt, ...) \
   do { \
@@ -78,6 +79,13 @@ enum codec_log_level {
 #define ROUND_UP_4(x) ROUND_UP_X(x, 2)
 #define ROUND_UP_8(x) ROUND_UP_X(x, 3)
 #define DIV_ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) >> (x))
+
+static inline bool use_new_decode_api(void) {
+    if (CHECK_VERSION(3)) {
+        return true;
+    }
+    return false;
+}
 
 typedef struct _CodecDevice {
   int       fd;
@@ -135,6 +143,7 @@ enum CODEC_FUNC_TYPE {
   CODEC_PICTURE_COPY,
   CODEC_DEINIT,
   CODEC_FLUSH_BUFFERS,
+  CODEC_DECODE_VIDEO2,
 };
 
 enum CODEC_IO_CMD {
