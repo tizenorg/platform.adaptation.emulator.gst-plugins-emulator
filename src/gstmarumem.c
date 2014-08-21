@@ -99,7 +99,6 @@ codec_init_data_from (CodecContext *ctx, int media_type, gpointer buffer)
     }
   }
 
-#if 1
   memcpy(&ctx->codecdata_size, buffer + size, sizeof(ctx->codecdata_size));
   size += sizeof(ctx->codecdata_size);
 
@@ -108,7 +107,6 @@ codec_init_data_from (CodecContext *ctx, int media_type, gpointer buffer)
     ctx->codecdata = g_malloc(ctx->codecdata_size);
     memcpy(ctx->codecdata, buffer + size, ctx->codecdata_size);
   }
-#endif
 
   return ret;
 }
