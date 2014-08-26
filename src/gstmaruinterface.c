@@ -75,8 +75,7 @@ _codec_invoke_qemu(int32_t ctx_index, int32_t api_index,
   ioparam.ctx_index = ctx_index;
   ioparam.mem_offset = mem_offset;
 
-//  if (CHECK_VERSION(3)) {
-  if (true) {
+  if (CHECK_VERSION(3)) {
     if (buffer_id) {
       ioparam.buffer_id.buffer_index = buffer_id->buffer_index;
       ioparam.buffer_id.buffer_size = buffer_id->buffer_size;
