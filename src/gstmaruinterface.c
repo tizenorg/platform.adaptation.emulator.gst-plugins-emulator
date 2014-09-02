@@ -145,11 +145,17 @@ codec_buffer_free (gpointer start)
 {
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  if (use_new_decode_api()) {
-    release_device_mem (device_fd, start - OFFSET_PICTURE_BUFFER); // FIXME
-  } else {
-    release_device_mem (device_fd, start);
-  }
+  release_device_mem (device_fd, start);
+
+  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
+}
+
+static void
+codec_buffer_free2 (gpointer start)
+{
+  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
+
+  release_device_mem (device_fd, start - OFFSET_PICTURE_BUFFER);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
@@ -173,7 +179,7 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   ctx = marudec->context;
   dev = marudec->dev;
 
-  if (use_new_decode_api()) {
+  if (marudec->is_using_new_decode_api) {
     is_last_buffer = marudec->is_last_buffer;
     mem_offset = marudec->mem_offset;
   } else {
@@ -200,7 +206,7 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
 
     GST_BUFFER_FREE_FUNC (*buf) = g_free;
 
-    if (use_new_decode_api()) {
+    if (marudec->is_using_new_decode_api) {
       memcpy (buffer, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
     } else {
       memcpy (buffer, device_mem + mem_offset, size);
@@ -210,18 +216,19 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     GST_DEBUG ("secured last buffer!! Use heap buffer");
   } else {
     // address of "device_mem" and "opaque" is aleady aligned.
-    if (use_new_decode_api()) {
+    if (marudec->is_using_new_decode_api) {
       buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
+      GST_BUFFER_FREE_FUNC (*buf) = codec_buffer_free2;
     } else {
       buffer = (gpointer)(device_mem + mem_offset);
+      GST_BUFFER_FREE_FUNC (*buf) = codec_buffer_free;
     }
 
-    GST_BUFFER_FREE_FUNC (*buf) = codec_buffer_free;
 
     GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (intptr_t)buffer, mem_offset);
   }
 
-  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = buffer;
+  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = (void *)buffer;
   GST_BUFFER_SIZE (*buf) = size;
   GST_BUFFER_OFFSET (*buf) = offset;
 
@@ -328,10 +335,14 @@ codec_decode_video (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
   codec_decode_video_data_to (in_size, idx, in_offset, in_buf, buffer);
 
   opaque.buffer_index = ctx->index;
-  if (use_new_decode_api()) {
+
+  marudec->is_using_new_decode_api = (can_use_new_decode_api() && (ctx->video.pix_fmt != -1));
+
+  if (marudec->is_using_new_decode_api) {
     int picture_size = gst_maru_avpicture_size (ctx->video.pix_fmt,
         ctx->video.width, ctx->video.height);
     if (picture_size < 0) {
+      GST_ERROR ("Check about it"); // FIXME
       opaque.buffer_size = SMALLDATA;
     } else {
       opaque.buffer_size = picture_size;
@@ -359,7 +370,7 @@ codec_decode_video (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
     return len;
   }
 
-  if (use_new_decode_api()) {
+  if (marudec->is_using_new_decode_api) {
     marudec->is_last_buffer = ret;
     marudec->mem_offset = opaque.buffer_size;
   } else {

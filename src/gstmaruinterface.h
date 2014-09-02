@@ -100,6 +100,7 @@ typedef struct _GstMaruDec
   // decode result
   bool is_last_buffer;
   int mem_offset;
+  bool is_using_new_decode_api;
 } GstMaruDec;
 
 int

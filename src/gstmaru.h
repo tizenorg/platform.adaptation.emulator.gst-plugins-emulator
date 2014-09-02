@@ -80,7 +80,7 @@ enum codec_log_level {
 #define ROUND_UP_8(x) ROUND_UP_X(x, 3)
 #define DIV_ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) >> (x))
 
-static inline bool use_new_decode_api(void) {
+static inline bool can_use_new_decode_api(void) {
     if (CHECK_VERSION(3)) {
         return true;
     }
