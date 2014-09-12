@@ -80,20 +80,13 @@ enum codec_log_level {
 #define ROUND_UP_8(x) ROUND_UP_X(x, 3)
 #define DIV_ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) >> (x))
 
-static inline bool can_use_new_decode_api(void) {
-    if (CHECK_VERSION(3)) {
-        return true;
-    }
-    return false;
-}
-
-typedef struct _CodecDevice {
+typedef struct {
   int       fd;
   uint8_t   *buf;
   uint32_t  buf_size;
 } CodecDevice;
 
-typedef struct _CodecElement {
+typedef struct {
   int32_t codec_type;
   int32_t media_type;
   gchar name[32];
@@ -102,25 +95,25 @@ typedef struct _CodecElement {
     int32_t pix_fmts[4];
     int32_t sample_fmts[4];
   };
-} CodecElement;
+} __attribute__((packed)) CodecElement;
 
-typedef struct _VideoData {
+typedef struct {
   int32_t width, height;
   int32_t fps_n, fps_d;
   int32_t par_n, par_d;
   int32_t pix_fmt, bpp;
   int32_t ticks_per_frame;
-} VideoData;
+} __attribute__((packed)) VideoData;
 
-typedef struct _AudioData {
+typedef struct {
   int32_t channels, sample_rate;
   int32_t block_align, depth;
   int32_t sample_fmt, frame_size;
   int32_t bits_per_sample_fmt, reserved;
   int64_t channel_layout;
-} AudioData;
+} __attribute__((packed)) AudioData;
 
-typedef struct _CodecContext {
+typedef struct {
   VideoData video;
   AudioData audio;
 
@@ -133,30 +126,6 @@ typedef struct _CodecContext {
   CodecElement *codec;
   int32_t index;
 } CodecContext;
-
-enum CODEC_FUNC_TYPE {
-  CODEC_INIT = 0,
-  CODEC_DECODE_VIDEO,
-  CODEC_ENCODE_VIDEO,
-  CODEC_DECODE_AUDIO,
-  CODEC_ENCODE_AUDIO,
-  CODEC_PICTURE_COPY,
-  CODEC_DEINIT,
-  CODEC_FLUSH_BUFFERS,
-  CODEC_DECODE_VIDEO2,
-};
-
-enum CODEC_IO_CMD {
-  CODEC_CMD_GET_VERSION = 20,
-  CODEC_CMD_GET_ELEMENT,
-  CODEC_CMD_GET_CONTEXT_INDEX,
-  CODEC_CMD_GET_ELEMENT_DATA,
-  CODEC_CMD_PUT_DATA_INTO_BUFFER = 40,
-  CODEC_CMD_SECURE_BUFFER,
-  CODEC_CMD_TRY_SECURE_BUFFER,
-  CODEC_CMD_RELEASE_BUFFER,
-  CODEC_CMD_INVOKE_API_AND_RELEASE_BUFFER,
-};
 
 enum CODEC_MEDIA_TYPE {
   AVMEDIA_TYPE_UNKNOWN = -1,

@@ -647,7 +647,7 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   gst_maruenc_setup_working_buf (maruenc);
 
   ret_size =
-    codec_encode_video (maruenc->context, maruenc->working_buf,
+    interface->encode_video (maruenc->context, maruenc->working_buf,
                 maruenc->working_buf_size, GST_BUFFER_DATA (buffer),
                 GST_BUFFER_SIZE (buffer), GST_BUFFER_TIMESTAMP (buffer),
                 &coded_frame, &is_keyframe,
@@ -743,7 +743,7 @@ gst_maruenc_encode_audio (GstMaruEnc *maruenc, guint8 *audio_in,
     maruenc->buffer_size = max_size;
   }
 
-  res = codec_encode_audio (maruenc->context, audio_out, max_size,
+  res = interface->encode_audio (maruenc->context, audio_out, max_size,
                             audio_in, in_size, timestamp, maruenc->dev);
 
   if (res < 0) {
