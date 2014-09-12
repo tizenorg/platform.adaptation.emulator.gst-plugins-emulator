@@ -35,6 +35,18 @@
 
 #define MAX_TS_MASK 0xff
 
+enum CODEC_FUNC_TYPE {
+  CODEC_INIT = 0,
+  CODEC_DECODE_VIDEO,
+  CODEC_ENCODE_VIDEO,
+  CODEC_DECODE_AUDIO,
+  CODEC_ENCODE_AUDIO,
+  CODEC_PICTURE_COPY,
+  CODEC_DEINIT,
+  CODEC_FLUSH_BUFFERS,
+  CODEC_DECODE_VIDEO_AND_PICTURE_COPY, // version 3
+};
+
 typedef struct
 {
   gint idx;
@@ -103,43 +115,43 @@ typedef struct _GstMaruDec
   bool is_using_new_decode_api;
 } GstMaruDec;
 
-int
-codec_init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev);
-
-void
-codec_deinit (CodecContext *ctx, CodecDevice *dev);
-
-int
-codec_decode_video (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
+typedef struct {
+  int
+  (*init) (CodecContext *ctx, CodecElement *codec, CodecDevice *dev);
+  void
+  (*deinit) (CodecContext *ctx, CodecDevice *dev);
+  int
+  (*decode_video) (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
                     gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data);
-
-int
-codec_decode_audio (CodecContext *ctx, int16_t *samples,
+  int
+  (*decode_audio) (CodecContext *ctx, int16_t *samples,
                     int *frame_size_ptr, uint8_t *in_buf,
                     int in_size, CodecDevice *dev);
-
-int
-codec_encode_video (CodecContext *ctx, uint8_t*out_buf,
+  int
+  (*encode_video) (CodecContext *ctx, uint8_t*out_buf,
                     int out_size, uint8_t *in_buf,
                     int in_size, int64_t in_timestamp,
                     int *coded_frame, int *is_keyframe,
                     CodecDevice *dev);
-
-int
-codec_encode_audio (CodecContext *ctx, uint8_t *out_buf,
+  int
+  (*encode_audio) (CodecContext *ctx, uint8_t *out_buf,
                     int out_size, uint8_t *in_buf,
                     int in_size, int64_t timestamp,
                     CodecDevice *dev);
-
-void
-codec_picture_copy (CodecContext *ctx, uint8_t *pict,
-                uint32_t pict_size, CodecDevice *dev);
-
-void
-codec_flush_buffers (CodecContext *ctx, CodecDevice *dev);
-
-GstFlowReturn
-codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset,
+  void
+  (*flush_buffers) (CodecContext *ctx, CodecDevice *dev);
+  GstFlowReturn
+  (*buffer_alloc_and_copy) (GstPad *pad, guint64 offset,
                     guint size, GstCaps *caps, GstBuffer **buf);
+  int
+  (*get_device_version) (int fd);
+  int
+  (*prepare_elements) (int fd, GList *elements);
+} Interface;
+
+extern Interface *interface;
+
+extern Interface *interface_version_2;
+extern Interface *interface_version_3;
 
 #endif /* __GST_MARU_INTERFACE_H__ */

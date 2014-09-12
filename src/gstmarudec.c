@@ -441,7 +441,7 @@ gst_marudec_sink_event (GstPad *pad, GstEvent *event)
   case GST_EVENT_FLUSH_STOP:
   {
     if (marudec->opened) {
-      codec_flush_buffers (marudec->context, marudec->dev);
+      interface->flush_buffers (marudec->context, marudec->dev);
     }
 
     gst_marudec_reset_ts (marudec);
@@ -872,7 +872,7 @@ get_output_buffer (GstMaruDec *marudec, GstBuffer **outbuf)
    */
   gst_pad_set_bufferalloc_function(
     GST_PAD_PEER(marudec->srcpad),
-    (GstPadBufferAllocFunction) codec_buffer_alloc_and_copy);
+    (GstPadBufferAllocFunction) interface->buffer_alloc_and_copy);
 
   ret = gst_pad_alloc_buffer_and_set_caps (marudec->srcpad,
     GST_BUFFER_OFFSET_NONE, pict_size,
@@ -977,7 +977,7 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
 
   GST_DEBUG_OBJECT (marudec, "decode video: input buffer size %d", size);
 
-  len = codec_decode_video (marudec, data, size,
+  len = interface->decode_video (marudec, data, size,
         dec_info->idx, in_offset, outbuf, &have_data);
   if (len < 0 || !have_data) {
     return len;
@@ -1097,7 +1097,7 @@ gst_marudec_audio_frame (GstMaruDec *marudec, CodecElement *codec,
 
   GST_DEBUG_OBJECT (marudec, "decode audio, input buffer size %d", size);
 
-  len = codec_decode_audio (marudec->context,
+  len = interface->decode_audio (marudec->context,
       (int16_t *) GST_BUFFER_DATA (*outbuf), &have_data,
       data, size, marudec->dev);
 
@@ -1288,7 +1288,7 @@ gst_marudec_chain (GstPad *pad, GstBuffer *buffer)
     GST_DEBUG_OBJECT (marudec, "received DISCONT");
     gst_marudec_drain (marudec);
 //    gst_marudec_flush_pcache (marudec);
-    codec_flush_buffers (marudec->context, marudec->dev);
+    interface->flush_buffers (marudec->context, marudec->dev);
     marudec->discont = TRUE;
     gst_marudec_reset_ts (marudec);
   }

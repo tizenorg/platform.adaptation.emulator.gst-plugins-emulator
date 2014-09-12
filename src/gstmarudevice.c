@@ -152,7 +152,7 @@ gst_maru_avcodec_open (CodecContext *ctx,
   }
 
   g_mutex_lock (&gst_avcodec_mutex);
-  ret = codec_init (ctx, codec, dev);
+  ret = interface->init (ctx, codec, dev);
   g_mutex_unlock (&gst_avcodec_mutex);
 
   return ret;
@@ -176,7 +176,7 @@ gst_maru_avcodec_close (CodecContext *ctx, CodecDevice *dev)
   }
 
   g_mutex_lock (&gst_avcodec_mutex);
-  codec_deinit (ctx, dev);
+  interface->deinit (ctx, dev);
   g_mutex_unlock (&gst_avcodec_mutex);
 
   ret = gst_maru_codec_device_close (dev);

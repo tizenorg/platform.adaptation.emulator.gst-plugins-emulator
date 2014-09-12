@@ -28,6 +28,7 @@
 
 #include "gstmaru.h"
 #include "gstmaruutils.h"
+#include "gstmaruinterface.h"
 
 GST_DEBUG_CATEGORY (maru_debug);
 
@@ -45,7 +46,7 @@ GST_DEBUG_CATEGORY (maru_debug);
 gboolean gst_marudec_register (GstPlugin *plugin, GList *element);
 gboolean gst_maruenc_register (GstPlugin *plugin, GList *element);
 
-static GList *codec_element = NULL;
+static GList *elements = NULL;
 static gboolean codec_element_init = FALSE;
 static GMutex gst_maru_mutex;
 
@@ -54,11 +55,8 @@ int device_version;
 static gboolean
 gst_maru_codec_element_init ()
 {
-  int fd = 0;
-  int i, elem_cnt = 0;
-  uint32_t data_length = 0;
+  int fd = 0, ret;
   void *buffer = MAP_FAILED;
-  CodecElement *elem = NULL;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
@@ -68,65 +66,63 @@ gst_maru_codec_element_init ()
   if (fd < 0) {
     perror ("[gst-maru] failed to open codec device");
     GST_ERROR ("failed to open codec device");
-    return FALSE;
+    ret = FALSE;
+    goto out;
   }
 
-  ioctl (fd, CODEC_CMD_GET_VERSION, &device_version);
-  GST_LOG ("pluigin version is [%u]", CODEC_VER);
-  GST_LOG ("device version is [%u]", device_version);
-  // FIXME: check version
-/*
-  if (device_version < CODEC_VER) {
-    GST_ERROR ("plugin version [%u] is not support device version [%u]", CODEC_VER, device_version);
-    close (fd);
-    return FALSE;
+  // get device version
+  // if version 3
+  device_version = interface_version_3->get_device_version(fd);
+  if (device_version == -EINVAL) {
+    // if version 2
+    device_version = interface_version_2->get_device_version(fd);
   }
-*/
+  if (device_version < 0) {
+    perror ("[gst-maru] Incompatible device version");
+    GST_ERROR ("Incompatible device version");
+    ret = FALSE;
+    goto out;
+  }
 
+  // interface mapping
+  if (device_version < 3) {
+    interface = interface_version_2;
+  } else if (device_version >= 3 && device_version < 4) {
+    interface = interface_version_3;
+  } else {
+    perror ("[gst-maru] Incompatible device version");
+    GST_ERROR ("Incompatible device version");
+    ret = FALSE;
+    goto out;
+  }
+
+  // prepare elements
+  if (interface->prepare_elements(fd, elements) < 0) {
+    perror ("[gst-maru] cannot prepare elements");
+    GST_ERROR ("cannot prepare elements");
+    ret = FALSE;
+    goto out;
+  }
+
+  // try to mmap device memory
   buffer = mmap (NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (buffer == MAP_FAILED) {
     perror ("[gst-maru] memory mapping failure");
     GST_ERROR ("memory mapping failure");
-    close (fd);
-    return FALSE;
+    ret = FALSE;
   }
 
-  GST_DEBUG ("request a device to get codec element");
-  if (ioctl(fd, CODEC_CMD_GET_ELEMENT, &data_length) < 0) {
-    perror ("[gst-maru] failed to get codec elements");
-    GST_ERROR ("failed to get codec elements");
+out:
+  if (buffer != MAP_FAILED) {
     munmap (buffer, 4096);
+  }
+  if (fd >= 0) {
     close (fd);
-    return FALSE;
   }
-
-  GST_DEBUG ("total size of codec elements %d", data_length);
-  elem = g_malloc0 (data_length);
-  if (!elem) {
-    GST_ERROR ("failed to allocate memory for codec elements");
-    munmap (buffer, 4096);
-    close (fd);
-    return FALSE;
-  }
-
-  if (ioctl(fd, CODEC_CMD_GET_ELEMENT_DATA, elem) < 0) {
-    GST_ERROR ("failed to get codec elements");
-    munmap (buffer, 4096);
-    close (fd);
-    return FALSE;
-  }
-
-  elem_cnt = data_length / sizeof(CodecElement);
-  for (i = 0; i < elem_cnt; i++) {
-    codec_element = g_list_append (codec_element, &elem[i]);
-  }
-
-  munmap (buffer, 4096);
-  close (fd);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
-  return TRUE;
+  return ret;
 }
 
 static gboolean
@@ -148,20 +144,14 @@ plugin_init (GstPlugin *plugin)
   }
   g_mutex_unlock (&gst_maru_mutex);
 
-  if (!gst_marudec_register (plugin, codec_element)) {
+  if (!gst_marudec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
     return FALSE;
   }
-  if (!gst_maruenc_register (plugin, codec_element)) {
+  if (!gst_maruenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
     return FALSE;
   }
-
-#if 0
-  while ((codec_element = g_list_next (codec_element))) {
-    g_list_free (codec_element);
-  }
-#endif
 
   return TRUE;
 }

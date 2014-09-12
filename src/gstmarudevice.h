@@ -33,6 +33,9 @@
 
 #include "gstmaru.h"
 
+extern int device_fd;
+extern gpointer device_mem;
+
 int gst_maru_codec_device_open (CodecDevice *dev, int media_type);
 int gst_maru_codec_device_close (CodecDevice *dev);
 
