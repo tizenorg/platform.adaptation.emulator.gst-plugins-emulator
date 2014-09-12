@@ -19,6 +19,7 @@ libgstemul_la_SOURCES = gstmaru.c \
 	gstmarudec.c \
 	gstmaruenc.c \
 	gstmaruinterface.c \
+	gstmaruinterface3.c \
 	gstmarudevice.c \
 	gstmarumem.c
 
