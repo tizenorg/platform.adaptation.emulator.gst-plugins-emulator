@@ -469,25 +469,41 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
 // AUDIO DECODE / ENCODE
 //
 
+struct audio_decode_input {
+    int32_t inbuf_size;
+    uint8_t inbuf;          // for pointing inbuf address
+} __attribute__((packed));
+
+struct audio_decode_output {
+    int32_t len;
+    int32_t got_frame;
+    uint8_t data;           // for pointing data address
+} __attribute__((packed));
+
 static int
 decode_audio (CodecContext *ctx, int16_t *samples,
-                    int *have_data, uint8_t *in_buf,
-                    int in_size, CodecDevice *dev)
+                    int *have_data, uint8_t *inbuf,
+                    int inbuf_size, CodecDevice *dev)
 {
   int len = 0, ret = 0;
   gpointer buffer = NULL;
   uint32_t mem_offset;
+  size_t size = sizeof(inbuf_size) + inbuf_size;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
   if (ret < 0) {
     GST_ERROR ("failed to get available memory to write inbuf");
     return -1;
   }
 
-  GST_DEBUG ("decode_audio 1. in_buffer size %d", in_size);
-  codec_decode_audio_data_to (in_size, in_buf, buffer);
+  GST_DEBUG ("decode_audio. in_buffer size %d", inbuf_size);
+
+  fill_size_header(buffer, size);
+  struct audio_decode_input *decode_input = buffer + sizeof(int32_t);
+  decode_input->inbuf_size = inbuf_size;
+  memcpy(&decode_input->inbuf, inbuf, inbuf_size);
 
   mem_offset = GET_OFFSET(buffer);
 
@@ -500,10 +516,16 @@ decode_audio (CodecContext *ctx, int16_t *samples,
   GST_DEBUG ("decode_audio 2. ctx_id: %d, buffer = 0x%x",
     ctx->index, device_mem + mem_offset);
 
-  len = codec_decode_audio_data_from (have_data, samples,
-    &ctx->audio, device_mem + mem_offset);
+  struct audio_decode_output *decode_output = device_mem + mem_offset;
+  len = decode_output->len;
+  *have_data = decode_output->got_frame;
+  memcpy(&ctx->audio, &decode_output->data, sizeof(AudioData));
 
-  GST_DEBUG ("decode_audio 3. ctx_id: %d len: %d", ctx->index, len);
+  memcpy (samples, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, len);
+
+  GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld",
+          ctx->audio.sample_fmt, ctx->audio.sample_rate, ctx->audio.channels, ctx->audio.channel_layout);
+//  GST_DEBUG ("decode_audio 3. ctx_id: %d len: %d", ctx->index, len);
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 
