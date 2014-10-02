@@ -205,7 +205,6 @@ codec_decode_audio_data_from (int *have_data, int16_t *samples,
     size += resample_size;
   }
 
-  // return len;
   return resample_size;
 }
 

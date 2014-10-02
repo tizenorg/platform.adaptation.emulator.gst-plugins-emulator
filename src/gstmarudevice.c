@@ -52,8 +52,6 @@ int opened_cnt = 0;
 int
 gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 {
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   g_mutex_lock (&gst_avcodec_mutex);
   if (device_fd == -1) {
     if ((device_fd = open(CODEC_DEV, O_RDWR)) < 0) {
@@ -94,8 +92,6 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
   GST_DEBUG ("open count: %d", opened_cnt);
   g_mutex_unlock (&gst_avcodec_mutex);
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return 0;
 }
 
@@ -104,11 +100,9 @@ gst_maru_codec_device_close (CodecDevice *dev)
 {
   int fd = 0;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   fd = dev->fd;
   if (fd < 0) {
-    GST_ERROR ("Failed to get %s fd.\n", CODEC_DEV);
+    GST_ERROR ("Failed to get %s fd %d", CODEC_DEV, fd);
     return -1;
   }
 
@@ -127,14 +121,12 @@ gst_maru_codec_device_close (CodecDevice *dev)
 
     GST_INFO ("close %s", CODEC_DEV);
     if (close(fd) != 0) {
-      GST_ERROR ("failed to close %s fd: %d\n", CODEC_DEV, fd);
+      GST_ERROR ("failed to close %s fd: %d", CODEC_DEV, fd);
     }
     dev->fd = device_fd = -1;
   }
   dev->buf = MAP_FAILED;
   g_mutex_unlock (&gst_avcodec_mutex);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
   return 0;
 }
