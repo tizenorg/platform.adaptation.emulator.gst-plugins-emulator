@@ -135,7 +135,7 @@ gst_maruenc_base_init (GstMaruEncClass *klass)
     sinkcaps = gst_maru_codectype_to_audio_caps (NULL, codec->name, TRUE, codec);
     break;
   default:
-    GST_LOG("unknown media type.\n");
+    GST_LOG("unknown media type");
     break;
   }
 

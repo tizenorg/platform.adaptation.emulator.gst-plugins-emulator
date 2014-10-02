@@ -67,7 +67,7 @@ static gint gst_marudec_frame (GstMaruDec *marudec, guint8 *data,
                               const GstTSInfo *dec_info, gint64 in_offset, GstFlowReturn *ret);
 
 static gboolean gst_marudec_open (GstMaruDec *marudec);
-static int gst_marudec_close (GstMaruDec *marudec);
+static void gst_marudec_close (GstMaruDec *marudec);
 
 
 static const GstTSInfo *
@@ -296,7 +296,7 @@ gst_marudec_base_init (GstMaruDecClass *klass)
     srccaps = gst_maru_codectype_to_audio_caps (NULL, codec->name, FALSE, codec);
     break;
   default:
-    GST_LOG("unknown media type.\n");
+    GST_LOG("unknown media type");
     break;
   }
 
@@ -368,11 +368,6 @@ gst_marudec_init (GstMaruDec *marudec)
 
   marudec->queued = NULL;
   gst_segment_init (&marudec->segment, GST_FORMAT_TIME);
-
-  marudec->dev = g_malloc0 (sizeof(CodecDevice));
-  if (!marudec->dev) {
-    GST_ERROR_OBJECT (marudec, "failed to allocate memory for CodecDevice");
-  }
 }
 
 static void
@@ -550,6 +545,7 @@ gst_marudec_setcaps (GstPad *pad, GstCaps *caps)
   GST_OBJECT_LOCK (marudec);
 
   if (marudec->opened) {
+    GST_LOG_OBJECT (marudec, "setcaps. context has opened before");
     GST_OBJECT_UNLOCK (marudec);
     gst_marudec_drain (marudec);
     GST_OBJECT_LOCK (marudec);
@@ -583,14 +579,6 @@ gst_marudec_setcaps (GstPad *pad, GstCaps *caps)
     GST_DEBUG_OBJECT (marudec, "sink caps have pixel-aspect-ratio of %d:%d",
         gst_value_get_fraction_numerator (par),
         gst_value_get_fraction_denominator (par));
-
-#if 0 // TODO
-    if (marudec->par) {
-      g_free(marudec->par);
-    }
-    marudec->par = g_new0 (GValue, 1);
-    gst_value_init_and_copy (marudec->par, par);
-#endif
   }
 
   fps = gst_structure_get_value (structure, "framerate");
@@ -615,12 +603,6 @@ gst_marudec_setcaps (GstPad *pad, GstCaps *caps)
 
   if (!gst_marudec_open (marudec)) {
     GST_DEBUG_OBJECT (marudec, "Failed to open");
-#if 0
-    if (marudec->par) {
-      g_free(marudec->par);
-      marudec->par = NULL;
-    }
-#endif
     GST_OBJECT_UNLOCK (marudec);
     gst_object_unref (marudec);
 
@@ -648,12 +630,13 @@ gst_marudec_open (GstMaruDec *marudec)
 
   oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
 
+  marudec->dev = g_malloc0 (sizeof(CodecDevice));
   if (!marudec->dev) {
+    GST_ERROR_OBJECT (marudec, "failed to allocate memory for CodecDevice");
     return FALSE;
   }
 
-  if (gst_maru_avcodec_open (marudec->context,
-                            oclass->codec, marudec->dev) < 0) {
+  if (gst_maru_avcodec_open (marudec->context, oclass->codec, marudec->dev) < 0) {
     gst_marudec_close (marudec);
     GST_ERROR_OBJECT (marudec,
       "maru_%sdec: Failed to open codec", oclass->codec->name);
@@ -689,10 +672,14 @@ gst_marudec_open (GstMaruDec *marudec)
   return TRUE;
 }
 
-static int
+static void
 gst_marudec_close (GstMaruDec *marudec)
 {
-  int ret = 0;
+  if (!marudec->opened) {
+    GST_DEBUG_OBJECT (marudec,
+      "maru_%sdec: not opened yet", marudec->context->codec->name);
+    return;
+  }
 
   if (marudec->context->codecdata) {
     g_free(marudec->context->codecdata);
@@ -700,17 +687,16 @@ gst_marudec_close (GstMaruDec *marudec)
   }
 
   if (!marudec->dev) {
-    return -1;
+    return;
   }
 
-  ret = gst_maru_avcodec_close (marudec->context, marudec->dev);
+  gst_maru_avcodec_close (marudec->context, marudec->dev);
+  marudec->opened = FALSE;
 
   if (marudec->dev) {
     g_free(marudec->dev);
     marudec->dev = NULL;
   }
-
-  return ret;
 }
 
 

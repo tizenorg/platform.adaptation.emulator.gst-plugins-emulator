@@ -450,7 +450,7 @@ gst_maru_caps_with_codecname (const char *name, int media_type,
     buf = GST_BUFFER_CAST (gst_value_get_mini_object (value));
     size = GST_BUFFER_SIZE (buf);
     data = GST_BUFFER_DATA (buf);
-    GST_DEBUG ("extradata: %p, size: %d\n", data, size);
+    GST_DEBUG ("extradata: %p, size: %d", data, size);
 
     if (ctx->codecdata) {
       g_free (ctx->codecdata);
@@ -467,7 +467,7 @@ gst_maru_caps_with_codecname (const char *name, int media_type,
   } else if (ctx->codecdata == NULL) {
     ctx->codecdata_size = 0;
     ctx->codecdata = g_malloc0 (GST_ROUND_UP_16(FF_INPUT_BUFFER_PADDING_SIZE));
-    GST_DEBUG ("no extra data.\n");
+    GST_DEBUG ("no extra data");
   }
 
   if ((strcmp (name, "mpeg4") == 0)) {
