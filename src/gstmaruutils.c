@@ -1223,7 +1223,6 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
 
       memcpy (GST_BUFFER_DATA(data), ctx->codecdata, ctx->codecdata_size);
       gst_caps_set_simple (caps, "codec_data", GST_TYPE_BUFFER, data, NULL);
-
       gst_buffer_unref (data);
     }
     GST_LOG ("caps for codec %s %" GST_PTR_FORMAT, name, caps);
