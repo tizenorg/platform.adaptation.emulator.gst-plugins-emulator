@@ -25,6 +25,12 @@
 
 #define GST_MARUENC_PARAMS_QDATA g_quark_from_static_string("maruenc-params")
 
+enum
+{
+  ARG_0,
+  ARG_BIT_RATE
+};
+
 typedef struct _GstMaruEnc
 {
   GstElement element;
@@ -115,7 +121,6 @@ gst_maruenc_base_init (GstMaruEncClass *klass)
             longname,
             classification,
             description,
-//            "accelerated codec for Tizen Emulator",
             "Kitae Kim <kt920.kim@samsung.com>");
 
     g_free (longname);
@@ -159,6 +164,46 @@ gst_maruenc_base_init (GstMaruEncClass *klass)
 }
 
 static void
+gst_maruenc_set_property (GObject *object,
+  guint prop_id, const GValue *value, GParamSpec *pspec)
+{
+  GstMaruEnc *maruenc;
+
+  maruenc = (GstMaruEnc *) (object);
+
+  if (maruenc->opened) {
+    GST_WARNING_OBJECT (maruenc,
+      "Can't change properties one decoder is setup !");
+    return;
+  }
+
+  switch (prop_id) {
+    case ARG_BIT_RATE:
+      maruenc->bitrate = g_value_get_ulong (value);
+      break;
+    default:
+      break;
+  }
+}
+
+static void
+gst_maruenc_get_property (GObject *object,
+  guint prop_id, GValue *value, GParamSpec *pspec)
+{
+  GstMaruEnc *maruenc;
+
+  maruenc = (GstMaruEnc *) (object);
+
+  switch (prop_id) {
+    case ARG_BIT_RATE:
+      g_value_set_ulong (value, maruenc->bitrate);
+      break;
+    default:
+      break;
+  }
+}
+
+static void
 gst_maruenc_class_init (GstMaruEncClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
@@ -166,10 +211,20 @@ gst_maruenc_class_init (GstMaruEncClass *klass)
 
   parent_class = g_type_class_peek_parent (klass);
 
-#if 0
-  gobject_class->set_property = gst_maruenc_set_property
-  gobject_class->get_property = gst_maruenc_get_property
-#endif
+  gobject_class->set_property = gst_maruenc_set_property;
+  gobject_class->get_property = gst_maruenc_get_property;
+
+  if (klass->codec->media_type == AVMEDIA_TYPE_VIDEO) {
+    g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_BIT_RATE,
+      g_param_spec_ulong ("bitrate", "Bit Rate",
+        "Target VIDEO Bitrate", 0, G_MAXULONG, DEFAULT_VIDEO_BITRATE,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  } else if (klass->codec->media_type == AVMEDIA_TYPE_AUDIO) {
+    g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_BIT_RATE,
+      g_param_spec_ulong ("bitrate", "Bit Rate",
+        "Target Audio Bitrate", 0, G_MAXULONG, DEFAULT_AUDIO_BITRATE,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  }
 
   gstelement_class->change_state = gst_maruenc_change_state;
 
