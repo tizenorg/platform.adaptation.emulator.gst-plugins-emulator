@@ -73,7 +73,7 @@ gst_maru_codec_element_init ()
   // get device version
   // if version 3
   device_version = interface_version_3->get_device_version(fd);
-  if (device_version == -EINVAL) {
+  if (device_version < 0) {
     // if version 2
     device_version = interface_version_2->get_device_version(fd);
   }
