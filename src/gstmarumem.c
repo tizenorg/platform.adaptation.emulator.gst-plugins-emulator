@@ -260,9 +260,6 @@ codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, int64_t 
   memcpy (buffer + size, &in_size, sizeof(in_size));
   size += sizeof(in_size);
 
-  memcpy (buffer + size, &timestamp, sizeof(timestamp));
-  size += sizeof(timestamp);
-
   if (in_size > 0) {
     memcpy (buffer + size, in_buf, in_size);
     size += in_size;
@@ -275,19 +272,15 @@ codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, int64_t 
 int
 codec_encode_audio_data_from (uint8_t *out_buf, gpointer buffer)
 {
-  int ret = 0, outbuf_size = 0, size = 0;
+  int len = 0, size = 0;
 
-  memcpy (&ret, buffer, sizeof(ret));
-  size = sizeof(ret);
-  if (ret == 0) {
-    memcpy (&outbuf_size, buffer + size, sizeof(outbuf_size));
-    size += sizeof(outbuf_size);
-    if (outbuf_size > 0) {
-      memcpy (out_buf, buffer + size, outbuf_size);
-    }
+  memcpy (&len, buffer, sizeof(len));
+  size = sizeof(len);
+  if (len > 0) {
+    memcpy (out_buf, buffer + size, len);
   }
 
-  GST_DEBUG ("encode_audio. ret: %d outbuf size: %d", ret, outbuf_size);
+  GST_DEBUG ("encode_audio. len: %d", len);
 
-  return outbuf_size;
+  return len;
 }
