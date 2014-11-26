@@ -77,8 +77,6 @@ invoke_device_api(int fd, int32_t ctx_index, int32_t api_index,
   IOCTL_Data ioctl_data = { 0, };
   int ret = -1;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   ioctl_data.api_index = api_index;
   ioctl_data.ctx_index = ctx_index;
   if (mem_offset) {
@@ -92,8 +90,6 @@ invoke_device_api(int fd, int32_t ctx_index, int32_t api_index,
     *mem_offset = ioctl_data.mem_offset;
   }
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return ret;
 }
 
@@ -103,7 +99,6 @@ secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
   int ret = 0;
   IOCTL_Data data;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
   data.ctx_index = ctx_id;
   data.buffer_size = buf_size;
 
@@ -111,8 +106,6 @@ secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
 
   *buffer = (gpointer)((uint32_t)device_mem + data.mem_offset);
   GST_DEBUG ("device_mem %p, offset_size 0x%x", device_mem, data.mem_offset);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
   return ret;
 }
@@ -123,15 +116,11 @@ release_device_mem (int fd, gpointer start)
   int ret;
   uint32_t offset = start - device_mem;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   GST_DEBUG ("release device_mem start: %p, offset: 0x%x", start, offset);
   ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_RELEASE_BUFFER), &offset);
   if (ret < 0) {
     GST_ERROR ("failed to release buffer\n");
   }
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 static int
@@ -150,21 +139,13 @@ get_context_index (int fd)
 static void
 buffer_free (gpointer start)
 {
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   release_device_mem (device_fd, start);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 static void
 buffer_free2 (gpointer start)
 {
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   release_device_mem (device_fd, start - OFFSET_PICTURE_BUFFER);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 static inline void fill_size_header(void *buffer, size_t size)
@@ -184,8 +165,6 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   gpointer buffer = NULL;
   int ret;
   uint32_t mem_offset;
-
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   if ((ctx->index = get_context_index(dev->fd)) <= 0) {
     GST_ERROR ("failed to get a context index");
@@ -221,20 +200,14 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return opened;
 }
 
 static void
 deinit (CodecContext *ctx, CodecDevice *dev)
 {
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   GST_INFO ("close context %d", ctx->index);
   invoke_device_api (dev->fd, ctx->index, CODEC_DEINIT, NULL, -1);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 //
@@ -265,8 +238,6 @@ decode_video (GstMaruDec *marudec, uint8_t *inbuf, int inbuf_size,
   gpointer buffer = NULL;
   uint32_t mem_offset;
   size_t size = sizeof(inbuf_size) + sizeof(idx) + sizeof(in_offset) + inbuf_size;
-
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
   if (ret < 0) {
@@ -317,8 +288,6 @@ decode_video (GstMaruDec *marudec, uint8_t *inbuf, int inbuf_size,
     release_device_mem(dev->fd, device_mem + mem_offset);
   }
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return len;
 }
 
@@ -331,8 +300,6 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   GstMaruDec *marudec;
   CodecContext *ctx;
   CodecDevice *dev;
-
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   *buf = gst_buffer_new ();
 
@@ -395,8 +362,6 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     gst_buffer_set_caps (*buf, caps);
   }
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return GST_FLOW_OK;
 }
 
@@ -424,8 +389,6 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
   gpointer buffer = NULL;
   uint32_t mem_offset;
   size_t size = sizeof(inbuf_size) + sizeof(in_timestamp) + inbuf_size;
-
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
   if (ret < 0) {
@@ -458,8 +421,6 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
   memcpy(outbuf, &encode_output->data, len);
 
   release_device_mem(dev->fd, device_mem + mem_offset);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
   return len;
 }
@@ -500,8 +461,6 @@ decode_audio (CodecContext *ctx, int16_t *samples,
   uint32_t mem_offset;
   size_t size = sizeof(inbuf_size) + inbuf_size;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
   if (ret < 0) {
     GST_ERROR ("failed to get available memory to write inbuf");
@@ -523,7 +482,7 @@ decode_audio (CodecContext *ctx, int16_t *samples,
     return -1;
   }
 
-  GST_DEBUG ("decode_audio 2. ctx_id: %d, buffer = 0x%x",
+  GST_DEBUG ("decode_audio. ctx_id: %d, buffer = 0x%x",
     ctx->index, device_mem + mem_offset);
 
   struct audio_decode_output *decode_output = device_mem + mem_offset;
@@ -535,11 +494,8 @@ decode_audio (CodecContext *ctx, int16_t *samples,
 
   GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld",
           ctx->audio.sample_fmt, ctx->audio.sample_rate, ctx->audio.channels, ctx->audio.channel_layout);
-//  GST_DEBUG ("decode_audio 3. ctx_id: %d len: %d", ctx->index, len);
 
   release_device_mem(dev->fd, device_mem + mem_offset);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
   return len;
 }
@@ -554,8 +510,6 @@ encode_audio (CodecContext *ctx, uint8_t *outbuf,
   gpointer buffer = NULL;
   uint32_t mem_offset;
   size_t size = sizeof(inbuf_size) + inbuf_size;
-
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
   ret = secure_device_mem(dev->fd, ctx->index, inbuf_size, &buffer);
   if (ret < 0) {
@@ -588,8 +542,6 @@ encode_audio (CodecContext *ctx, uint8_t *outbuf,
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
-
   return len;
 }
 
@@ -601,12 +553,8 @@ encode_audio (CodecContext *ctx, uint8_t *outbuf,
 static void
 flush_buffers (CodecContext *ctx, CodecDevice *dev)
 {
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   GST_DEBUG ("flush buffers of context: %d", ctx->index);
   invoke_device_api (dev->fd, ctx->index, CODEC_FLUSH_BUFFERS, NULL, -1);
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 }
 
 static int

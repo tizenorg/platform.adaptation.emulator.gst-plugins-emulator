@@ -58,8 +58,6 @@ gst_maru_codec_element_init ()
   int fd = 0, ret = TRUE;
   void *buffer = MAP_FAILED;
 
-  CODEC_LOG (DEBUG, "enter: %s\n", __func__);
-
   codec_element_init = TRUE;
 
   fd = open (CODEC_DEV, O_RDWR);
@@ -119,8 +117,6 @@ out:
   if (fd >= 0) {
     close (fd);
   }
-
-  CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
   return ret;
 }

@@ -38,8 +38,6 @@ _codec_info_data (CodecElement *codec, gpointer buffer)
 {
   int size = sizeof(size);
 
-  CODEC_LOG (DEBUG, "enter, %s\n", __func__);
-
   GST_INFO ("type: %d, name: %s", codec->codec_type, codec->name);
 
   memcpy (buffer + size, &codec->codec_type, sizeof(codec->codec_type));
@@ -48,8 +46,6 @@ _codec_info_data (CodecElement *codec, gpointer buffer)
   memcpy (buffer + size, codec->name, sizeof(codec->name));
   size += sizeof(codec->name);
 
-  CODEC_LOG (DEBUG, "leave, %s\n", __func__);
-
   return size;
 }
 
@@ -57,8 +53,6 @@ void
 codec_init_data_to (CodecContext *ctx, CodecElement *codec, gpointer buffer)
 {
   int size = 0;
-
-  CODEC_LOG (DEBUG, "enter, %s\n", __func__);
 
   size = _codec_info_data (codec, buffer);
 
@@ -73,8 +67,6 @@ codec_init_data_to (CodecContext *ctx, CodecElement *codec, gpointer buffer)
   // data length
   size -= sizeof(size);
   memcpy (buffer, &size, sizeof(size));
-
-  CODEC_LOG (DEBUG, "leave, %s\n", __func__);
 }
 
 int
@@ -130,7 +122,7 @@ codec_decode_video_data_to (int in_size, int idx, int64_t in_offset,
     size += in_size;
   }
 
-  CODEC_LOG (DEBUG, "decode_video. inbuf_size: %d\n", in_size);
+  GST_DEBUG ("decode_video. inbuf_size: %d", in_size);
 
   size -= sizeof(size);
   memcpy (buffer, &size, sizeof(size));
