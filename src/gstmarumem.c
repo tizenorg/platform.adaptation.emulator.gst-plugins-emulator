@@ -260,6 +260,9 @@ codec_encode_audio_data_to (int in_size, int max_size, uint8_t *in_buf, int64_t 
   memcpy (buffer + size, &in_size, sizeof(in_size));
   size += sizeof(in_size);
 
+  memcpy (buffer + size, &timestamp, sizeof(timestamp));
+  size += sizeof(timestamp);
+
   if (in_size > 0) {
     memcpy (buffer + size, in_buf, in_size);
     size += in_size;

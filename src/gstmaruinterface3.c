@@ -480,6 +480,16 @@ struct audio_decode_output {
     uint8_t data;           // for pointing data address
 } __attribute__((packed));
 
+struct audio_encode_input {
+    int32_t inbuf_size;
+    uint8_t inbuf;          // for pointing inbuf address
+} __attribute__((packed));
+
+struct audio_encode_output {
+    int32_t len;
+    uint8_t data;           // for pointing data address
+} __attribute__((packed));
+
 static int
 decode_audio (CodecContext *ctx, int16_t *samples,
                     int *have_data, uint8_t *inbuf,
@@ -535,23 +545,28 @@ decode_audio (CodecContext *ctx, int16_t *samples,
 }
 
 static int
-encode_audio (CodecContext *ctx, uint8_t *out_buf,
-                    int max_size, uint8_t *in_buf,
-                    int in_size, int64_t timestamp,
+encode_audio (CodecContext *ctx, uint8_t *outbuf,
+                    int max_size, uint8_t *inbuf,
+                    int inbuf_size, int64_t timestamp,
                     CodecDevice *dev)
 {
-  int ret = 0;
+  int len = 0, ret = 0;
   gpointer buffer = NULL;
   uint32_t mem_offset;
+  size_t size = sizeof(inbuf_size) + inbuf_size;
 
   CODEC_LOG (DEBUG, "enter: %s\n", __func__);
 
-  ret = secure_device_mem(dev->fd, ctx->index, in_size, &buffer);
+  ret = secure_device_mem(dev->fd, ctx->index, inbuf_size, &buffer);
   if (ret < 0) {
+    GST_ERROR ("failed to get available memory to write inbuf");
     return -1;
   }
 
-  codec_encode_audio_data_to (in_size, max_size, in_buf, timestamp, buffer);
+  fill_size_header(buffer, size);
+  struct audio_encode_input *encode_input = buffer + sizeof(int32_t);
+  encode_input->inbuf_size = inbuf_size;
+  memcpy(&encode_input->inbuf, inbuf, inbuf_size);
 
   mem_offset = GET_OFFSET(buffer);
 
@@ -563,13 +578,17 @@ encode_audio (CodecContext *ctx, uint8_t *out_buf,
 
   GST_DEBUG ("encode_audio. mem_offset = 0x%x", mem_offset);
 
-  ret = codec_encode_audio_data_from (out_buf, device_mem + mem_offset);
+  struct audio_encode_output *encode_output = device_mem + mem_offset;
+  len = encode_output->len;
+  if (len > 0) {
+    memcpy (outbuf, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, len);
+  }
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 
   CODEC_LOG (DEBUG, "leave: %s\n", __func__);
 
-  return ret;
+  return len;
 }
 
 //
