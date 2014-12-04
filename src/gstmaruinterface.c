@@ -451,6 +451,13 @@ prepare_elements (int fd)
   return elements;
 }
 
+static int
+get_profile_status (int fd)
+{
+  GST_DEBUG ("In this version, profile feature is not supported.");
+  return 0;
+}
+
 Interface *interface_version_2 = &(Interface) {
   .init = codec_init,
   .deinit = codec_deinit,
@@ -462,4 +469,5 @@ Interface *interface_version_2 = &(Interface) {
   .buffer_alloc_and_copy = codec_buffer_alloc_and_copy,
   .get_device_version = get_device_version,
   .prepare_elements = prepare_elements,
+  .get_profile_status = get_profile_status,
 };

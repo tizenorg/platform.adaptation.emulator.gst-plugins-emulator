@@ -45,6 +45,7 @@ enum IOCTL_CMD {
   IOCTL_CMD_TRY_SECURE_BUFFER,
   IOCTL_CMD_RELEASE_BUFFER,
   IOCTL_CMD_INVOKE_API_AND_GET_DATA,
+  IOCTL_CMD_GET_PROFILE_STATUS,
 };
 
 typedef struct {
@@ -602,6 +603,20 @@ prepare_elements (int fd)
   return elements;
 }
 
+static int
+get_profile_status (int fd)
+{
+  uint8_t profile_status;
+  int ret;
+
+  ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_PROFILE_STATUS), &profile_status);
+  if (ret < 0) {
+    return ret;
+  }
+
+  return profile_status;
+}
+
 // Interfaces
 Interface *interface_version_3 = &(Interface) {
   .init = init,
@@ -614,4 +629,5 @@ Interface *interface_version_3 = &(Interface) {
   .buffer_alloc_and_copy = buffer_alloc_and_copy,
   .get_device_version = get_device_version,
   .prepare_elements = prepare_elements,
+  .get_profile_status = get_profile_status,
 };

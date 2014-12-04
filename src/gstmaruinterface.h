@@ -147,6 +147,8 @@ typedef struct {
   (*get_device_version) (int fd);
   GList *
   (*prepare_elements) (int fd);
+  int
+  (*get_profile_status) (int fd);
 } Interface;
 
 extern Interface *interface;

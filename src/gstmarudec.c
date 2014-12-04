@@ -69,6 +69,91 @@ static gint gst_marudec_frame (GstMaruDec *marudec, guint8 *data,
 static gboolean gst_marudec_open (GstMaruDec *marudec);
 static void gst_marudec_close (GstMaruDec *marudec);
 
+// for profile
+static GTimer* profile_decode_timer = NULL;
+static gdouble elapsed_decode_time = 0;
+static int decoded_frame_cnt = 0;
+static int last_frame_cnt = 0;
+static GMutex profile_mutex;
+static int profile_init = 0;
+
+static gboolean
+maru_profile_cb (gpointer user_data)
+{
+  int decoding_fps = 0;
+  gdouble decoding_time = 0;
+
+  g_mutex_lock (&profile_mutex);
+  if (decoded_frame_cnt < 0) {
+    decoded_frame_cnt = 0;
+    last_frame_cnt = 0;
+    elapsed_decode_time = 0;
+    g_mutex_unlock (&profile_mutex);
+    return FALSE;
+  }
+
+  decoding_fps = decoded_frame_cnt - last_frame_cnt;
+  last_frame_cnt = decoded_frame_cnt;
+
+  decoding_time = elapsed_decode_time;
+  elapsed_decode_time = 0;
+  g_mutex_unlock (&profile_mutex);
+
+  GST_DEBUG ("decoding fps=%d, latency=%f\n", decoding_fps, decoding_time/decoding_fps);
+  return TRUE;
+}
+
+static void init_codec_profile(void)
+{
+  if (!profile_init) {
+    profile_init = 1;
+    profile_decode_timer = g_timer_new();
+  }
+}
+
+static void reset_codec_profile(void)
+{
+  g_mutex_lock (&profile_mutex);
+  decoded_frame_cnt = -1;
+  g_mutex_lock (&profile_mutex);
+}
+
+static void begin_video_decode_profile(void)
+{
+  g_timer_start(profile_decode_timer);
+}
+
+static void end_video_decode_profile(void)
+{
+  g_timer_stop(profile_decode_timer);
+
+  g_mutex_lock (&profile_mutex);
+  if (decoded_frame_cnt == 0) {
+    g_timeout_add_seconds(1, maru_profile_cb, NULL);
+  }
+
+  elapsed_decode_time += g_timer_elapsed(profile_decode_timer, NULL);
+  decoded_frame_cnt++;
+  g_mutex_unlock (&profile_mutex);
+}
+
+#define INIT_CODEC_PROFILE(fd)              \
+  if (interface->get_profile_status(fd)) {  \
+    init_codec_profile();                   \
+  }
+#define RESET_CODEC_PROFILE(s)  \
+  if (profile_init) {           \
+    reset_codec_profile();      \
+  }
+#define BEGIN_VIDEO_DECODE_PROFILE()  \
+  if (profile_init) {                 \
+    begin_video_decode_profile();     \
+  }
+#define END_VIDEO_DECODE_PROFILE()  \
+  if (profile_init) {               \
+    end_video_decode_profile();     \
+  }
+
 
 static const GstTSInfo *
 gst_ts_info_store (GstMaruDec *dec, GstClockTime timestamp,
@@ -660,6 +745,9 @@ gst_marudec_open (GstMaruDec *marudec)
   marudec->proportion = 0.0;
   marudec->earliest_time = -1;
 
+  // initialize profile resource
+  INIT_CODEC_PROFILE(marudec->dev->fd);
+
   return TRUE;
 }
 
@@ -687,6 +775,9 @@ gst_marudec_close (GstMaruDec *marudec)
     g_free(marudec->dev);
     marudec->dev = NULL;
   }
+
+  // reset profile resource
+  RESET_CODEC_PROFILE();
 }
 
 
@@ -945,11 +1036,17 @@ gst_marudec_video_frame (GstMaruDec *marudec, guint8 *data, guint size,
 
   GST_DEBUG_OBJECT (marudec, "decode video: input buffer size %d", size);
 
+  // begin video decode profile
+  BEGIN_VIDEO_DECODE_PROFILE();
+
   len = interface->decode_video (marudec, data, size,
         dec_info->idx, in_offset, outbuf, &have_data);
   if (len < 0 || !have_data) {
     return len;
   }
+
+  // end video decode profile
+  END_VIDEO_DECODE_PROFILE();
 
   *ret = get_output_buffer (marudec, outbuf);
   if (G_UNLIKELY (*ret != GST_FLOW_OK)) {
