@@ -401,6 +401,10 @@ gst_maru_caps_to_smpfmt (const GstCaps *caps, CodecContext *ctx, gboolean raw)
   }
 
   name = gst_structure_get_name (str);
+  if (!name) {
+    GST_ERROR ("Couldn't get audio sample format from caps %" GST_PTR_FORMAT, caps);
+    return;
+  }
 
   if (!strcmp (name, "audio/x-raw-float")) {
     if (gst_structure_get_int (str, "width", &width) &&
@@ -472,6 +476,10 @@ gst_maru_caps_with_codecname (const char *name, int media_type,
 
   if ((strcmp (name, "mpeg4") == 0)) {
     const gchar *mime = gst_structure_get_name (structure);
+    if (!mime) {
+      GST_ERROR ("Couldn't get mime type from caps %" GST_PTR_FORMAT, caps);
+      return;
+    }
 
     if (!strcmp (mime, "video/x-divx")) {
       ctx->codec_tag = GST_MAKE_FOURCC ('D', 'I', 'V', 'X');
@@ -512,11 +520,15 @@ gst_maru_caps_to_codecname (const GstCaps *caps,
 {
   const gchar *mimetype;
   const GstStructure *str;
-  int media_type;
+  int media_type = AVMEDIA_TYPE_UNKNOWN;
 
   str = gst_caps_get_structure (caps, 0);
 
   mimetype = gst_structure_get_name (str);
+  if (!mimetype) {
+    GST_ERROR ("Couldn't get mimetype from caps %" GST_PTR_FORMAT, caps);
+    return;
+  }
 
   if (!strcmp (mimetype, "video/x-h263")) {
     const gchar *h263version = gst_structure_get_string (str, "h263version");
@@ -649,15 +661,6 @@ gst_maru_caps_to_codecname (const GstCaps *caps,
   }
 
   if (context != NULL) {
-#if 0
-    if (video == TRUE) {
-      context->codec_type = CODEC_TYPE_VIDEO;
-    } else if (audio == TRUE) {
-      context->codec_type = CODEC_TYPE_AUDIO;
-    } else {
-      context->codec_type = CODEC_TYPE_UNKNOWN;
-    }
-#endif
     gst_maru_caps_with_codecname (codec_name, media_type, caps, context);
   }
 
@@ -1112,8 +1115,8 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
             "video/x-3ivx", NULL));
       }
     }
-  } else if (strcmp (name, "h264") == 0) {
-      caps = gst_maru_video_caps_new (ctx, name, "video/x-h264", NULL);
+  } else if ((strcmp (name, "h264") == 0) || (strcmp (name, "libx264") == 0)) {
+    caps = gst_maru_video_caps_new (ctx, name, "video/x-h264", NULL);
   } else if (g_str_has_prefix(name, "msmpeg4")) {
     // msmpeg4v1,m msmpeg4v2, msmpeg4
     gint version;
@@ -1219,6 +1222,8 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
 
   if (caps != NULL) {
     if (ctx && ctx->codecdata_size > 0) {
+      GST_DEBUG ("codec_data size %d", ctx->codecdata_size);
+
       GstBuffer *data = gst_buffer_new_and_alloc (ctx->codecdata_size);
 
       memcpy (GST_BUFFER_DATA(data), ctx->codecdata, ctx->codecdata_size);

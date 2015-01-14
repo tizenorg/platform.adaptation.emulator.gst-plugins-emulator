@@ -102,30 +102,30 @@ GstStateChangeReturn gst_maruenc_change_state (GstElement *element, GstStateChan
 static void
 gst_maruenc_base_init (GstMaruEncClass *klass)
 {
-    GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
-    GstPadTemplate *sinktempl = NULL, *srctempl = NULL;
-    GstCaps *sinkcaps = NULL, *srccaps = NULL;
-    CodecElement *codec;
-    gchar *longname, *classification, *description;
+  GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
+  GstPadTemplate *sinktempl = NULL, *srctempl = NULL;
+  GstCaps *sinkcaps = NULL, *srccaps = NULL;
+  CodecElement *codec;
+  gchar *longname, *classification, *description;
 
-    codec =
-        (CodecElement *)g_type_get_qdata (G_OBJECT_CLASS_TYPE (klass),
-         GST_MARUENC_PARAMS_QDATA);
+  codec =
+    (CodecElement *)g_type_get_qdata (G_OBJECT_CLASS_TYPE (klass),
+        GST_MARUENC_PARAMS_QDATA);
 
-    longname = g_strdup_printf ("%s Encoder", codec->longname);
-    classification = g_strdup_printf ("Codec/Encoder/%s",
-            (codec->media_type == AVMEDIA_TYPE_VIDEO) ? "Video" : "Audio");
-    description = g_strdup_printf ("%s Encoder", codec->name);
+  longname = g_strdup_printf ("%s Encoder", codec->longname);
+  classification = g_strdup_printf ("Codec/Encoder/%s",
+      (codec->media_type == AVMEDIA_TYPE_VIDEO) ? "Video" : "Audio");
+  description = g_strdup_printf ("%s Encoder", codec->name);
 
-    gst_element_class_set_details_simple (element_class,
-            longname,
-            classification,
-            description,
-            "Kitae Kim <kt920.kim@samsung.com>");
+  gst_element_class_set_details_simple (element_class,
+      longname,
+      classification,
+      description,
+      "Erik Walthinsen <omega@cse.ogi.edu>");
 
-    g_free (longname);
-    g_free (classification);
-
+  g_free (longname);
+  g_free (classification);
+  g_free (description);
 
   if (!(srccaps = gst_maru_codecname_to_caps (codec->name, NULL, TRUE))) {
     GST_DEBUG ("Couldn't get source caps for encoder '%s'", codec->name);
@@ -259,10 +259,6 @@ gst_maruenc_init (GstMaruEnc *maruenc)
   maruenc->opened = FALSE;
 
   maruenc->dev = g_malloc0 (sizeof(CodecDevice));
-  if (!maruenc->dev) {
-    GST_ERROR_OBJECT (maruenc, "failed to allocate CodecDevice");
-    // TODO: error handling
-  }
 
   if (oclass->codec->media_type == AVMEDIA_TYPE_VIDEO) {
     gst_pad_set_chain_function (maruenc->sinkpad, gst_maruenc_chain_video);
@@ -307,9 +303,6 @@ gst_maruenc_finalize (GObject *object)
   }
 
   g_queue_free (maruenc->delay);
-#if 0
-  g_free (maruenc->filename);
-#endif
 
   g_object_unref (maruenc->adapter);
 
@@ -326,7 +319,6 @@ gst_maruenc_get_possible_sizes (GstMaruEnc *maruenc, GstPad *pad,
   guint i;
 
   othercaps = gst_pad_peer_get_caps (maruenc->srcpad);
-
   if (!othercaps) {
     return gst_caps_copy (caps);
   }
@@ -409,6 +401,47 @@ gst_maruenc_getcaps (GstPad *pad)
     return caps;
   }
 
+  if (!strcmp(oclass->codec->name, "libx264")) {
+    GstPad *peer;
+
+    peer = gst_pad_get_peer (maruenc->srcpad);
+    if (peer) {
+      const GstCaps *templcaps;
+      GstCaps *peercaps;
+      guint i, n;
+
+      peercaps = gst_pad_get_caps (peer);
+
+      peercaps = gst_caps_make_writable (peercaps);
+      n = gst_caps_get_size (peercaps);
+      for (i = 0; i < n; i++) {
+        GstStructure *s = gst_caps_get_structure (peercaps, i);
+
+        gst_structure_set_name (s, "video/x-raw-yuv");
+        gst_structure_remove_field (s, "stream-format");
+        gst_structure_remove_field (s, "alignment");
+      }
+
+      templcaps = gst_pad_get_pad_template_caps (pad);
+
+      caps = gst_caps_intersect (peercaps, templcaps);
+      gst_caps_unref (peercaps);
+      gst_object_unref (peer);
+      peer = NULL;
+    } else {
+      caps = gst_caps_copy (gst_pad_get_pad_template_caps (pad));
+    }
+
+    if (GST_PAD_CAPS (pad) && gst_caps_can_intersect (GST_PAD_CAPS (pad), caps)) {
+      GstCaps *tmpcaps = gst_caps_copy (GST_PAD_CAPS (pad));
+
+      gst_caps_merge (tmpcaps, caps);
+      caps = tmpcaps;
+    }
+
+    return caps;
+  }
+
   // cached
   if (oclass->sinkcaps) {
     caps = gst_maruenc_get_possible_sizes (maruenc, pad, oclass->sinkcaps);
@@ -450,10 +483,6 @@ gst_maruenc_getcaps (GstPad *pad)
     }
 
     ctx = g_malloc0 (sizeof(CodecContext));
-    if (!ctx) {
-      GST_DEBUG_OBJECT (maruenc, "no context");
-      break;
-    }
 
     ctx->video.width = DEFAULT_WIDTH;
     ctx->video.height = DEFAULT_HEIGHT;
@@ -461,7 +490,6 @@ gst_maruenc_getcaps (GstPad *pad)
     ctx->video.fps_d = 25;
     ctx->video.ticks_per_frame = 1;
     ctx->bit_rate = DEFAULT_VIDEO_BITRATE;
-
     ctx->video.pix_fmt = pixfmt;
 
     GST_DEBUG ("Attempting to open codec");
@@ -484,11 +512,6 @@ gst_maruenc_getcaps (GstPad *pad)
       GST_DEBUG_OBJECT (maruenc, "Opening codec failed with pixfmt: %d", pixfmt);
     }
 
-#if 0
-    if (ctx->priv_data) {
-      gst_maru_avcodec_close (ctx, maruenc->dev);
-    }
-#endif
     g_free (ctx);
   }
 
@@ -532,29 +555,6 @@ gst_maruenc_setcaps (GstPad *pad, GstCaps *caps)
   maruenc->context->bit_rate = maruenc->bitrate;
   GST_DEBUG_OBJECT (maruenc, "Setting context to bitrate %lu, gop_size %d",
       maruenc->bitrate, maruenc->gop_size);
-
-#if 0
-
-  // user defined properties
-  maruenc->context->gop_size = maruenc->gop_size;
-  maruenc->context->lmin = (maruenc->lmin * FF_QP2LAMBDA + 0.5);
-  maruenc->context->lmax = (maruenc->lmax * FF_QP2LAMBDA + 0.5);
-
-  // some other defaults
-  maruenc->context->b_frame_strategy = 0;
-  maruenc->context->coder_type = 0;
-  maruenc->context->context_model = 0;
-  maruenc->context->scenechange_threshold = 0;
-  maruenc->context->inter_threshold = 0;
-
-  if (maruenc->interlaced) {
-    maruenc->context->flags |=
-      CODEC_FLAG_INTERLACED_DCT | CODEC_FLAG_INTERLACED_ME;
-    maruenc->picture->interlaced_frame = TRUE;
-
-    maruenc->picture->top_field_first = TRUE;
-  }
-#endif
 
   gst_maru_caps_with_codectype (oclass->codec->media_type, caps, maruenc->context);
 
@@ -705,8 +705,7 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
     interface->encode_video (maruenc->context, maruenc->working_buf,
                 maruenc->working_buf_size, GST_BUFFER_DATA (buffer),
                 GST_BUFFER_SIZE (buffer), GST_BUFFER_TIMESTAMP (buffer),
-                &coded_frame, &is_keyframe,
-                maruenc->dev);
+                &coded_frame, &is_keyframe, maruenc->dev);
 
   if (ret_size < 0) {
     GstMaruEncClass *oclass =
@@ -760,12 +759,13 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
        * - this unit cannot be decoded independently.
        */
       GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_DELTA_UNIT);
+    } else {
+      GST_BUFFER_FLAG_UNSET (outbuf, GST_BUFFER_FLAG_DELTA_UNIT);
     }
   } else {
     GST_WARNING_OBJECT (maruenc, "codec did not provide keyframe info");
   }
   gst_buffer_set_caps (outbuf, GST_PAD_CAPS (maruenc->srcpad));
-
   gst_buffer_unref (buffer);
 
 #if 0
