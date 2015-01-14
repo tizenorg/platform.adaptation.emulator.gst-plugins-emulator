@@ -357,7 +357,7 @@ gst_marudec_base_init (GstMaruDecClass *klass)
             longname,
             classification,
             description,
-            "Kitae Kim <kt920.kim@samsung.com>");
+            "Erik Walthinsen <omega@cse.ogi.edu>");
 
   g_free (longname);
   g_free (classification);
@@ -504,6 +504,9 @@ gst_marudec_sink_event (GstPad *pad, GstEvent *event)
   gboolean ret = FALSE;
 
   marudec = (GstMaruDec *) gst_pad_get_parent (pad);
+  if (!marudec) {
+    return FALSE;
+  }
 
   GST_DEBUG_OBJECT (marudec, "Handling %s event",
     GST_EVENT_TYPE_NAME (event));
@@ -616,6 +619,10 @@ gst_marudec_setcaps (GstPad *pad, GstCaps *caps)
   GST_DEBUG_OBJECT (pad, "setcaps called.");
 
   marudec = (GstMaruDec *) (gst_pad_get_parent (pad));
+  if (!marudec) {
+    return FALSE;
+  }
+
   oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
 
   GST_OBJECT_LOCK (marudec);
