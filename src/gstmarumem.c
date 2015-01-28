@@ -34,7 +34,7 @@
  *  codec data such as codec name, longname, media type and etc.
  */
 static int
-_codec_info_data (CodecElement *codec, gpointer buffer)
+codec_element_data (CodecElement *codec, gpointer buffer)
 {
   int size = sizeof(size);
 
@@ -54,11 +54,13 @@ codec_init_data_to (CodecContext *ctx, CodecElement *codec, gpointer buffer)
 {
   int size = 0;
 
-  size = _codec_info_data (codec, buffer);
+  size = codec_element_data (codec, buffer);
 
   GST_INFO ("context_id: %d, name: %s, media type: %s",
     ctx->index, codec->name, codec->media_type ? "audio" : "video");
 
+  // copy VideoData, AudioData, bit_rate, codec_tag and codecdata_size
+  // into device memory. the size of codecdata is variable.
   memcpy (buffer + size, ctx, sizeof(CodecContext) - 12);
   size += (sizeof(CodecContext) - 12);
   memcpy (buffer + size, ctx->codecdata, ctx->codecdata_size);

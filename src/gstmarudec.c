@@ -304,12 +304,8 @@ flush_queued (GstMaruDec *marudec)
 static void
 gst_marudec_drain (GstMaruDec *marudec)
 {
-#if 0
-  GstMaruDecClass *oclass;
-  oclass = (GstMaruDecClass *) (G_OBJECT_GET_CLASS (marudec));
-#endif
-
   GST_DEBUG_OBJECT (marudec, "drain frame");
+
   {
     gint have_data, len, try = 0;
 
@@ -406,6 +402,8 @@ gst_marudec_class_init (GstMaruDecClass *klass)
   parent_class = g_type_class_peek_parent (klass);
 
 #if 0
+  // use these function when defines new properties.
+
   gobject_class->set_property = gst_marudec_set_property
   gobject_class->get_property = gst_marudec_get_property
 #endif
@@ -673,15 +671,6 @@ gst_marudec_setcaps (GstPad *pad, GstCaps *caps)
     marudec->format.video.fps_n = -1;
     GST_DEBUG_OBJECT (marudec, "Using framerate from codec");
   }
-
-#if 0
-  if (strcmp (oclass->codec->name, "aac") == 0) {
-    const gchar *format = gst_structure_get_string (structure, "stream-format");
-    if (format == NULL || strcmp ("format", "raw") == 0) {
-      marudec->turnoff_parser = TRUE;
-    }
-  }
-#endif
 
   if (!gst_marudec_open (marudec)) {
     GST_DEBUG_OBJECT (marudec, "Failed to open");

@@ -246,9 +246,6 @@ gst_maruenc_init (GstMaruEnc *maruenc)
   maruenc->srcpad = gst_pad_new_from_template (oclass->srctempl, "src");
   gst_pad_use_fixed_caps (maruenc->srcpad);
 
-#if 0
-  maruenc->file = NULL;
-#endif
   maruenc->delay = g_queue_new ();
 
   // instead of AVCodecContext
@@ -677,27 +674,10 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
       "Received buffer of time %" GST_TIME_FORMAT,
       GST_TIME_ARGS (GST_BUFFER_TIMESTAMP (buffer)));
 
-#if 0
-  GST_OBJECT_LOCK (maruenc);
-  force_keyframe = maruenc->force_keyframe;
-  maruenc->force_keyframe = FALSE;
-  GST_OBJECT_UNLOCK (maruenc);
-
-  if (force_keyframe) {
-    maruenc->picture->pict_type = FF_I_TYPE;
-  }
-#endif
-
   frame_size = gst_maru_avpicture_size (maruenc->context->video.pix_fmt,
       maruenc->context->video.width, maruenc->context->video.height);
   g_return_val_if_fail (frame_size == GST_BUFFER_SIZE (buffer),
       GST_FLOW_ERROR);
-
-#if 0
-  pts = gst_maru_time_gst_to_ff (GST_BUFFER_TIMESTAMP (buffer) /
-    maruenc->context.video.ticks_per_frame,
-    maruenc->context.video.fps_n, maruen->context.video.fps_d);
-#endif
 
   gst_maruenc_setup_working_buf (maruenc);
 
@@ -723,33 +703,14 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
     return GST_FLOW_OK;
   }
 
-#if 0
-  if (maruenc->file && maruenc->context->stats_out) {
-    if (fprintf (maruenc->file, "%s", maruenc->context->stats_out) < 0) {
-      GST_ELEMENT_ERROR (maruenc, RESOURCE, WRITE,
-        (("Could not write to file \"%s\"."), maruenc->filename),
-        GST_ERROR_SYSTEM);
-    }
-  }
-#endif
-
-  // mem_offset = maruenc->dev->mem_info.offset;
-  // working_buf = maruenc->dev->buf + mem_offset;
-
   GST_DEBUG_OBJECT (maruenc, "encoded video. mem_offset = 0x%x",  mem_offset);
 
+  // encode_video copies output buffers twice.
+  // device memory to working_buf and working_buf to GstBuffer
   outbuf = gst_buffer_new_and_alloc (ret_size);
   memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
-  // memcpy (GST_BUFFER_DATA (outbuf), working_buf, ret_size);
   GST_BUFFER_TIMESTAMP (outbuf) = GST_BUFFER_TIMESTAMP (buffer);
   GST_BUFFER_DURATION (outbuf) = GST_BUFFER_DURATION (buffer);
-
-#if 0
-  ret = ioctl(maruenc->dev->fd, CODEC_CMD_RELEASE_BUFFER, &mem_offset);
-  if (ret < 0) {
-    GST_ERROR_OBJECT (maruenc, "failed to release used buffer");
-  }
-#endif
 
   if (coded_frame) {
     if (!is_keyframe) {
@@ -767,15 +728,6 @@ gst_maruenc_chain_video (GstPad *pad, GstBuffer *buffer)
   }
   gst_buffer_set_caps (outbuf, GST_PAD_CAPS (maruenc->srcpad));
   gst_buffer_unref (buffer);
-
-#if 0
-  if (force_keyframe) {
-    gst_pad_push_event (maruenc->srcpad,
-      gst_event_new_custom (GST_EVENT_CUSTOM_DOWNSTREAM,
-      gst_structure_new ("GstForceKeyUnit", "timestamp",
-                         G_TYPE_UINT64, GST_BUFFER_TIMESTAMP (outbuf), NULL)));
-  }
-#endif
 
   return gst_pad_push (maruenc->srcpad, outbuf);
 }
@@ -828,7 +780,6 @@ static GstFlowReturn
 gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
 {
   GstMaruEnc *maruenc;
-  // GstMaruEncClass *oclass;
   GstClockTime timestamp, duration;
   guint in_size, frame_size;
   gint osize;
@@ -839,7 +790,6 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
   CodecContext *ctx;
 
   maruenc = (GstMaruEnc *) (GST_OBJECT_PARENT (pad));
-  // oclass = (GstMaruEncClass *) G_OBJECT_GET_CLASS (maruenc);
 
   ctx = maruenc->context;
 
@@ -944,16 +894,6 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
     }
     GST_LOG_OBJECT (maruenc, "%u bytes left in the adapter", avail);
   } else {
-#if 0
-    int coded_bps = av_get_bits_per_sample (oclass->codec->name);
-
-    GST_LOG_OBJECT (maruenc, "coded bps %d, osize %d", coded_bps, osize);
-
-    out_size = in_size / osize;
-    if (coded_bps) {
-      out_size = (out_size * coded_bps) / 8;
-    }
-#endif
     in_data = (guint8 *) GST_BUFFER_DATA (buffer);
     ret = gst_maruenc_encode_audio (maruenc, in_data, in_size, out_size,
       timestamp, duration, discont);
@@ -970,11 +910,6 @@ gst_maruenc_chain_audio (GstPad *pad, GstBuffer *buffer)
 static void
 gst_maruenc_flush_buffers (GstMaruEnc *maruenc, gboolean send)
 {
-#if 0
-  GstBuffer *outbuf, *inbuf;
-  gint ret_size = 0;
-#endif
-
   GST_DEBUG_OBJECT (maruenc, "flushing buffers with sending %d", send);
 
   if (!maruenc->opened) {
@@ -983,55 +918,6 @@ gst_maruenc_flush_buffers (GstMaruEnc *maruenc, gboolean send)
     }
   }
 
-#if 0
-  while (!g_queue_is_empty (maruenc->delay)) {
-    maruenc_setup_working_buf (maruenc);
-
-    ret_size = codec_encode_video (maruenc->context,
-      maruenc->working_buf, maruenc->working_buf_size, NULL, NULL, 0,
-      maruenc->dev);
-
-    if (ret_size < 0) {
-      GstMaruEncClass *oclass =
-        (GstMaruEncClass *) (G_OBJECT_GET_CLASS (maruenc));
-      GST_WARNING_OBJECT (maruenc,
-        "maru_%senc: failed to flush buffer", oclass->codec->name);
-      break;
-    }
-
-    if (maruenc->file && maruenc->context->stats_out) {
-      if (fprintf (maruenc->file, "%s", maruenc->context->stats_out) < 0) {
-        GST_ELEMENT_ERROR (emeulenc, RESOURCE, WRITE,
-          (("Could not write to file \"%s\"."), maruenc->filename),
-          GST_ERROR_SYSTEM);
-      }
-    }
-
-    inbuf = g_queue_pop_head (maruenc->delay);
-
-    outbuf = gst_buffer_new_and_alloc (ret_size);
-    memcpy (GST_BUFFER_DATA (outbuf), maruenc->working_buf, ret_size);
-    GST_BUFFER_TIMESTAMP (outbuf) = GST_BUFFER_TIMESTAMP (inbuf);
-    GST_BUFFER_DURATION (outbuf) = GST_BUFFER_DURATION (inbuf);
-
-    if (!maruenc->context->coded_frame->key_frame) {
-      GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_DELTA_UNIT);
-    }
-    gst_buffer_set_caps (outbuf, GST_PAD_CAPS (maruenc->srcpad));
-
-    gst_buffer_unref (inbuf);
-
-    if (send) {
-      gst_pad_push (maruenc->srcpad, outbuf);
-    } else {
-      gst_buffer_unref (outbuf);
-    }
-  }
-
-  while (!g_queue_is_empty (maruenc->delay)) {
-    gst_buffer_unref (g_queue_pop_head (maruenc->delay));
-  }
-#endif
 }
 
 static gboolean
@@ -1045,16 +931,6 @@ gst_maruenc_event_video (GstPad *pad, GstEvent *event)
     gst_maruenc_flush_buffers (maruenc, TRUE);
     break;
   case GST_EVENT_CUSTOM_DOWNSTREAM:
-  {
-    const GstStructure *s;
-    s = gst_event_get_structure (event);
-
-    if (gst_structure_has_name (s, "GstForceKeyUnit")) {
-#if 0
-      maruenc->picture->pict_type = FF_I_TYPE;
-#endif
-    }
-  }
     break;
   default:
     break;
@@ -1076,11 +952,6 @@ gst_maruenc_event_src (GstPad *pad, GstEvent *event)
     s = gst_event_get_structure (event);
 
     if (gst_structure_has_name (s, "GstForceKeyUnit")) {
-#if 0
-      GST_OBJECT_LOCK (maruenc);
-      maruenc->force_keyframe = TRUE;
-      GST_OBJECT_UNLOCK (maruenc);
-#endif
       forward = FALSE;
       gst_event_unref (event);
     }
@@ -1119,13 +990,6 @@ gst_maruenc_change_state (GstElement *element, GstStateChange transition)
       maruenc->opened = FALSE;
     }
     gst_adapter_clear (maruenc->adapter);
-
-#if 0
-    if (maruenc->flie) {
-      fclose (maruenc->file);
-      maruenc->file = NULL;
-    }
-#endif
 
     if (maruenc->working_buf) {
       g_free (maruenc->working_buf);

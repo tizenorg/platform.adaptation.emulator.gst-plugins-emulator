@@ -1063,16 +1063,6 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
     caps = gst_maru_video_caps_new (ctx, name, "video/x-h263",
               "variant", G_TYPE_STRING, "itu",
               "h263version", G_TYPE_STRING, "h263p", NULL);
-#if 0
-    if (encode && ctx) {
-      gst_caps_set_simple (caps,
-        "annex-f", G_TYPE_BOOLEAN, ctx->flags & CODEC_FLAG_4MV,
-        "annex-j", G_TYPE_BOOLEAN, ctx->flags & CODEC_FLAG_LOOP_FILTER,
-        "annex-i", G_TYPE_BOOLEAN, ctx->flags & CODEC_FLAG_AC_PRED,
-        "annex-t", G_TYPE_BOOLEAN, ctx->flags & CODEC_FLAG_AC_PRED,
-        NULL);
-    }
-#endif
   } else if (strcmp (name, "mpeg2video") == 0) {
     if (encode) {
       caps = gst_maru_video_caps_new (ctx, name, "video/mpeg",
@@ -1142,12 +1132,6 @@ gst_maru_codecname_to_caps (const char *name, CodecContext *ctx, gboolean encode
     caps = gst_maru_video_caps_new (ctx, name, "video/x-wmv",
                 "wmvversion", G_TYPE_INT, 3, "format", GST_TYPE_FOURCC,
                 GST_MAKE_FOURCC ('W', 'V', 'C', '1'),  NULL);
-#if 0
-  } else if (strcmp (name, "vp3") == 0) {
-    mime_type = g_strdup ("video/x-vp3");
-  } else if (strcmp (name, "vp8") == 0) {
-    mime_type = g_strdup ("video/x-vp8");
-#endif
   } else if (strcmp (name, "aac") == 0) {
     caps = gst_maru_audio_caps_new (ctx, name, "audio/mpeg", NULL);
     if (!encode) {

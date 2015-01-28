@@ -73,25 +73,4 @@
 #define AV_CH_LAYOUT_7POINT1_WIDE      (AV_CH_LAYOUT_5POINT1_BACK|AV_CH_FRONT_LEFT_OF_CENTER|AV_CH_FRONT_RIGHT_OF_CENTER)
 #define AV_CH_LAYOUT_STEREO_DOWNMIX    (AV_CH_STEREO_LEFT|AV_CH_STEREO_RIGHT)
 
-#if 0
-/**
- * Return a channel layout id that matches name, 0 if no match.
- */
-int64_t av_get_channel_layout(const char *name);
-
-/**
- * Return a description of a channel layout.
- * If nb_channels is <= 0, it is guessed from the channel_layout.
- *
- * @param buf put here the string containing the channel layout
- * @param buf_size size in bytes of the buffer
- */
-void av_get_channel_layout_string(char *buf, int buf_size, int nb_channels, int64_t channel_layout);
-
-/**
- * Return the number of channels in the channel layout.
- */
-int av_get_channel_layout_nb_channels(int64_t channel_layout);
-#endif
-
 #endif /* AVUTIL_AUDIOCONVERT_H */

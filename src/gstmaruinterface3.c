@@ -266,11 +266,12 @@ decode_video (GstMaruDec *marudec, uint8_t *inbuf, int inbuf_size,
     }
     ret = invoke_device_api(dev->fd, ctx->index, CODEC_DECODE_VIDEO_AND_PICTURE_COPY, &mem_offset, picture_size);
   } else {
+    // in case of this, a decoded frame is not given from codec device.
     ret = invoke_device_api(dev->fd, ctx->index, CODEC_DECODE_VIDEO, &mem_offset, SMALLDATA);
   }
 
   if (ret < 0) {
-    GST_ERROR ("Invoke API failed");
+    GST_ERROR ("invoke API failed");
     return -1;
   }
 
@@ -405,7 +406,6 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
 
   mem_offset = GET_OFFSET(buffer);
 
-  // FIXME: how can we know output data size ?
   ret = invoke_device_api(dev->fd, ctx->index, CODEC_ENCODE_VIDEO, &mem_offset, SMALLDATA);
 
   if (ret < 0) {
