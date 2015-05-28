@@ -75,6 +75,7 @@ static int
 invoke_device_api(int fd, int32_t ctx_index, int32_t api_index,
                           uint32_t *mem_offset, int32_t buffer_size)
 {
+  GST_DEBUG (" >> Enter");
   IOCTL_Data ioctl_data = { 0, };
   int ret = -1;
 
@@ -91,12 +92,14 @@ invoke_device_api(int fd, int32_t ctx_index, int32_t api_index,
     *mem_offset = ioctl_data.mem_offset;
   }
 
+  GST_DEBUG (" >> Leave");
   return ret;
 }
 
 static int
 secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
 {
+  GST_DEBUG (" >> Enter");
   int ret = 0;
   IOCTL_Data data;
 
@@ -108,12 +111,14 @@ secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
   *buffer = (gpointer)((uint32_t)device_mem + data.mem_offset);
   GST_DEBUG ("device_mem %p, offset_size 0x%x", device_mem, data.mem_offset);
 
+  GST_DEBUG (" >> Leave");
   return ret;
 }
 
 static void
 release_device_mem (int fd, gpointer start)
 {
+  GST_DEBUG (" >> Enter");
   int ret;
   uint32_t offset = start - device_mem;
 
@@ -122,6 +127,7 @@ release_device_mem (int fd, gpointer start)
   if (ret < 0) {
     GST_ERROR ("failed to release buffer\n");
   }
+  GST_DEBUG (" >> Leave");
 }
 
 static int
@@ -136,7 +142,8 @@ get_context_index (int fd)
 
   return ctx_index;
 }
-
+// TODO: check this code is needed
+#if 0
 static void
 buffer_free (gpointer start)
 {
@@ -148,7 +155,7 @@ buffer_free2 (gpointer start)
 {
   release_device_mem (device_fd, start - OFFSET_PICTURE_BUFFER);
 }
-
+#endif
 static inline void fill_size_header(void *buffer, size_t size)
 {
   *((uint32_t *)buffer) = (uint32_t)size;
@@ -167,6 +174,7 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   int ret;
   uint32_t mem_offset;
 
+  GST_DEBUG (" >> Enter");
   if ((ctx->index = get_context_index(dev->fd)) <= 0) {
     GST_ERROR ("failed to get a context index");
     return -1;
@@ -187,6 +195,7 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   ret = invoke_device_api (dev->fd, ctx->index, CODEC_INIT, &mem_offset, SMALLDATA);
 
   if (ret < 0) {
+    GST_ERROR ("invoke_device_api failed");
     return -1;
   }
 
@@ -201,6 +210,7 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 
+  GST_DEBUG (" >> Leave");
   return opened;
 }
 
@@ -230,9 +240,10 @@ struct video_decode_output {
 } __attribute__((packed));
 
 static int
-decode_video (GstMaruDec *marudec, uint8_t *inbuf, int inbuf_size,
+decode_video (GstMaruVidDec *marudec, uint8_t *inbuf, int inbuf_size,
                     gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data)
 {
+  GST_DEBUG (" >> Enter");
   CodecContext *ctx = marudec->context;
   CodecDevice *dev = marudec->dev;
   int len = 0, ret = 0;
@@ -290,20 +301,86 @@ decode_video (GstMaruDec *marudec, uint8_t *inbuf, int inbuf_size,
     release_device_mem(dev->fd, device_mem + mem_offset);
   }
 
+  GST_DEBUG (" >> Leave");
   return len;
+}
+
+GstFlowReturn
+alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
+                  GstCaps *caps, GstBuffer **buf)
+{
+  GST_DEBUG (" >> enter");
+  bool is_last_buffer = 0;
+  uint32_t mem_offset;
+  CodecContext *ctx;
+  CodecDevice *dev;
+  GstMapInfo mapinfo;
+
+  ctx = marudec->context;
+  dev = marudec->dev;
+
+  if (marudec->is_using_new_decode_api) {
+    is_last_buffer = marudec->is_last_buffer;
+    mem_offset = marudec->mem_offset;
+  } else {
+    ctx = marudec->context;
+
+    mem_offset = 0;
+
+    int ret = invoke_device_api(dev->fd, ctx->index, CODEC_PICTURE_COPY, &mem_offset, size);
+    if (ret < 0) {
+      GST_DEBUG ("failed to get available buffer");
+      return GST_FLOW_ERROR;
+    }
+    is_last_buffer = ret;
+  }
+
+  gpointer *buffer = NULL;
+  is_last_buffer = 1;
+  if (is_last_buffer) {
+    // FIXME: we must aligned buffer offset.
+    //buffer = g_malloc (size);
+    gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);
+
+    if (marudec->is_using_new_decode_api) {
+      memcpy (mapinfo.data, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
+    } else {
+      memcpy (mapinfo.data, device_mem + mem_offset, size);
+    }
+    release_device_mem(dev->fd, device_mem + mem_offset);
+
+    GST_DEBUG ("secured last buffer!! Use heap buffer");
+  } else {
+    // address of "device_mem" and "opaque" is aleady aligned.
+    if (marudec->is_using_new_decode_api) {
+      buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
+      //GST_BUFFER_FREE_FUNC (*buf) = buffer_free2;
+    } else {
+      buffer = (gpointer)(device_mem + mem_offset);
+      //GST_BUFFER_FREE_FUNC (*buf) = buffer_free;
+    }
+
+
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (void *) buffer, mem_offset);
+  }
+
+  gst_buffer_unmap (*buf, &mapinfo);
+
+  GST_DEBUG (" >> leave");
+  return GST_FLOW_OK;
 }
 
 static GstFlowReturn
 buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
 {
+  GST_DEBUG (" >> enter");
   bool is_last_buffer = 0;
   uint32_t mem_offset;
   GstMaruDec *marudec;
   CodecContext *ctx;
   CodecDevice *dev;
-
-  *buf = gst_buffer_new ();
+  GstMapInfo mapinfo;
 
   marudec = (GstMaruDec *)gst_pad_get_element_private(pad);
   ctx = marudec->context;
@@ -328,11 +405,10 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   }
 
   gpointer *buffer = NULL;
+  is_last_buffer = 1;
   if (is_last_buffer) {
     // FIXME: we must aligned buffer offset.
     buffer = g_malloc (size);
-
-    GST_BUFFER_FREE_FUNC (*buf) = g_free;
 
     if (marudec->is_using_new_decode_api) {
       memcpy (buffer, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
@@ -346,24 +422,25 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     // address of "device_mem" and "opaque" is aleady aligned.
     if (marudec->is_using_new_decode_api) {
       buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
-      GST_BUFFER_FREE_FUNC (*buf) = buffer_free2;
+      //GST_BUFFER_FREE_FUNC (*buf) = buffer_free2;
     } else {
       buffer = (gpointer)(device_mem + mem_offset);
-      GST_BUFFER_FREE_FUNC (*buf) = buffer_free;
+      //GST_BUFFER_FREE_FUNC (*buf) = buffer_free;
     }
 
 
-    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (intptr_t)buffer, mem_offset);
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (void *) buffer, mem_offset);
   }
 
-  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = (void *)buffer;
-  GST_BUFFER_SIZE (*buf) = size;
+  *buf = gst_buffer_new ();
+  //*buf = gst_buffer_new_and_alloc (size);
+  gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);
+  mapinfo.data = (guint8 *)buffer;
+  mapinfo.size = size;
   GST_BUFFER_OFFSET (*buf) = offset;
+  gst_buffer_unmap (*buf, &mapinfo);
 
-  if (caps) {
-    gst_buffer_set_caps (*buf, caps);
-  }
-
+  GST_DEBUG (" >> leave");
   return GST_FLOW_OK;
 }
 
@@ -403,6 +480,7 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
   encode_input->inbuf_size = inbuf_size;
   encode_input->in_timestamp = in_timestamp;
   memcpy(&encode_input->inbuf, inbuf, inbuf_size);
+  GST_DEBUG ("insize: %d, inpts: %lld", encode_input->inbuf_size,(long long) encode_input->in_timestamp);
 
   mem_offset = GET_OFFSET(buffer);
 
@@ -484,7 +562,7 @@ decode_audio (CodecContext *ctx, int16_t *samples,
   }
 
   GST_DEBUG ("decode_audio. ctx_id: %d, buffer = 0x%x",
-    ctx->index, device_mem + mem_offset);
+    ctx->index, (unsigned int) (device_mem + mem_offset));
 
   struct audio_decode_output *decode_output = device_mem + mem_offset;
   len = decode_output->len;
@@ -493,8 +571,9 @@ decode_audio (CodecContext *ctx, int16_t *samples,
 
   memcpy (samples, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, len);
 
-  GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld",
-          ctx->audio.sample_fmt, ctx->audio.sample_rate, ctx->audio.channels, ctx->audio.channel_layout);
+  GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld, len %d",
+          ctx->audio.sample_fmt, ctx->audio.sample_rate, ctx->audio.channels,
+          ctx->audio.channel_layout, len);
 
   release_device_mem(dev->fd, device_mem + mem_offset);
 

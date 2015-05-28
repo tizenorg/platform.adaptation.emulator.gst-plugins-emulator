@@ -124,12 +124,6 @@ release_device_mem (int fd, gpointer start)
   }
 }
 
-static void
-codec_buffer_free (gpointer start)
-{
-  release_device_mem (device_fd, start);
-}
-
 static GstFlowReturn
 codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
@@ -140,8 +134,7 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   GstMaruDec *marudec;
   CodecContext *ctx;
   CodecDevice *dev;
-
-  *buf = gst_buffer_new ();
+  GstMapInfo mapinfo;
 
   marudec = (GstMaruDec *)gst_pad_get_element_private(pad);
   ctx = marudec->context;
@@ -167,8 +160,6 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     // FIXME: we must aligned buffer offset.
     buffer = g_malloc (size);
 
-    GST_BUFFER_FREE_FUNC (*buf) = g_free;
-
     memcpy (buffer, device_mem + mem_offset, size);
     release_device_mem(dev->fd, device_mem + mem_offset);
 
@@ -176,18 +167,16 @@ codec_buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   } else {
     // address of "device_mem" and "opaque" is aleady aligned.
     buffer = (gpointer)(device_mem + mem_offset);
-    GST_BUFFER_FREE_FUNC (*buf) = codec_buffer_free;
 
-    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (intptr_t)buffer, mem_offset);
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (void *)buffer, mem_offset);
   }
 
-  GST_BUFFER_DATA (*buf) = GST_BUFFER_MALLOCDATA (*buf) = (void *)buffer;
-  GST_BUFFER_SIZE (*buf) = size;
+  *buf = gst_buffer_new_and_alloc (size);
+  gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);
+  mapinfo.data = (guint8 *)buffer;
+  mapinfo.size = size;
   GST_BUFFER_OFFSET (*buf) = offset;
-
-  if (caps) {
-    gst_buffer_set_caps (*buf, caps);
-  }
+  gst_buffer_unmap (*buf, &mapinfo);
 
   return GST_FLOW_OK;
 }
@@ -323,7 +312,7 @@ codec_decode_audio (CodecContext *ctx, int16_t *samples,
   }
 
   GST_DEBUG ("decode_audio 2. ctx_id: %d, buffer = 0x%x",
-    ctx->index, device_mem + opaque.buffer_size);
+    ctx->index, (unsigned int) (device_mem + opaque.buffer_size));
 
   len = codec_decode_audio_data_from (have_data, samples,
     &ctx->audio, device_mem + opaque.buffer_size);

@@ -6,8 +6,8 @@ Group: Multimedia/Libraries
 License: LGPL-2.0+
 Source0: %{name}-%{version}.tar.gz
 Source1001: packaging/%{name}.manifest
-BuildRequires:  pkgconfig(gstreamer-0.10)
-BuildRequires:  pkgconfig(gstreamer-plugins-base-0.10)
+BuildRequires:  pkgconfig(gstreamer-1.0)
+BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
 BuildRequires:  pkgconfig(glib-2.0)
 
 %description
@@ -44,5 +44,5 @@ rm -rf %{buildroot}
 %files
 %manifest gst-plugins-emulator.manifest
 %defattr(-,root,root,-)
-%{_libdir}/gstreamer-0.10/libgstemul.so
+%{_libdir}/gstreamer-1.0/libgstemul.so
 /usr/share/license/%{name}

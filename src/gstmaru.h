@@ -42,6 +42,9 @@
 #include <sys/mman.h>
 #include <glib.h>
 #include <gst/gst.h>
+#include <gst/audio/audio.h>
+#include <gst/audio/gstaudiodecoder.h>
+#include <gst/video/gstvideodecoder.h>
 #include "pixfmt.h"
 
 GST_DEBUG_CATEGORY_EXTERN (maru_debug);
@@ -97,6 +100,11 @@ typedef struct {
   };
 } __attribute__((packed)) CodecElement;
 
+typedef struct AVRational{
+    int num; ///< numerator
+    int den; ///< denominator
+} AVRational;
+
 typedef struct {
   int32_t width, height;
   int32_t fps_n, fps_d;
@@ -139,7 +147,7 @@ enum CODEC_TYPE {
   CODEC_TYPE_ENCODE,
 };
 
-enum AUDIO_SAMPLE_FORMAT {
+enum SampleFormat {
   SAMPLE_FMT_NONE = -1,
   SAMPLE_FMT_U8,
   SAMPLE_FMT_S16,

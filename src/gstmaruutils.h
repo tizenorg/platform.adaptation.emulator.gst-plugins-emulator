@@ -115,4 +115,16 @@ int gst_maru_align_size (int buf_size);
 
 gint gst_maru_smpfmt_depth (int smp_fmt);
 
+GstVideoFormat gst_maru_pixfmt_to_videoformat (enum PixelFormat pixfmt);
+
+enum PixelFormat gst_maru_videoformat_to_pixfmt (GstVideoFormat format);
+
+GstAudioFormat gst_maru_smpfmt_to_audioformat(int32_t sample_fmt);
+
+gboolean gst_maru_channel_layout_to_gst (guint64 channel_layout, gint channels,
+    GstAudioChannelPosition * pos);
+
+void gst_maru_audioinfo_to_context (GstAudioInfo *info, CodecContext *context);
+
+void gst_maru_videoinfo_to_context (GstVideoInfo * info, CodecContext * context);
 #endif

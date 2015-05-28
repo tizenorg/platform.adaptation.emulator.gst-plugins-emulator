@@ -43,8 +43,10 @@ GST_DEBUG_CATEGORY (maru_debug);
 #define GST_IS_MARUDEC_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_MARUDEC))
 
-gboolean gst_marudec_register (GstPlugin *plugin, GList *element);
-gboolean gst_maruenc_register (GstPlugin *plugin, GList *element);
+gboolean gst_maruviddec_register (GstPlugin *plugin, GList *element);
+gboolean gst_maruvidenc_register (GstPlugin *plugin, GList *element);
+gboolean gst_maruauddec_register (GstPlugin *plugin, GList *element);
+gboolean gst_maruaudenc_register (GstPlugin *plugin, GList *element);
 
 static GList *elements = NULL;
 static gboolean codec_element_init = FALSE;
@@ -139,16 +141,22 @@ plugin_init (GstPlugin *plugin)
     }
   }
   g_mutex_unlock (&gst_maru_mutex);
-
-  if (!gst_marudec_register (plugin, elements)) {
+  if (!gst_maruviddec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
     return FALSE;
   }
-  if (!gst_maruenc_register (plugin, elements)) {
+  if (!gst_maruauddec_register (plugin, elements)) {
+    GST_ERROR ("failed to register decoder elements");
+    return FALSE;
+  }
+  if (!gst_maruvidenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
     return FALSE;
   }
-
+  if (!gst_maruaudenc_register (plugin, elements)) {
+    GST_ERROR ("failed to register encoder elements");
+    return FALSE;
+  }
   return TRUE;
 }
 
@@ -159,10 +167,10 @@ plugin_init (GstPlugin *plugin)
 GST_PLUGIN_DEFINE (
   GST_VERSION_MAJOR,
   GST_VERSION_MINOR,
-  "tizen-emul",
+  tizen-emul,
   "Codecs for Tizen Emulator",
   plugin_init,
-  "0.3.0",
+  "1.2.0",
   "LGPL",
   "gst-plugins-emulator",
   "http://www.tizen.org"

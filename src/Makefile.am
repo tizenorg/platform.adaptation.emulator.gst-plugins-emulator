@@ -16,8 +16,10 @@ plugin_LTLIBRARIES = libgstemul.la
 # sources used to compile this plug-in
 libgstemul_la_SOURCES = gstmaru.c \
 	gstmaruutils.c \
-	gstmarudec.c \
-	gstmaruenc.c \
+	gstmaruviddec.c \
+	gstmaruauddec.c \
+	gstmaruvidenc.c \
+	gstmaruaudenc.c \
 	gstmaruinterface.c \
 	gstmaruinterface3.c \
 	gstmarudevice.c \
@@ -25,7 +27,7 @@ libgstemul_la_SOURCES = gstmaru.c \
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
 libgstemul_la_CFLAGS = $(GST_CFLAGS) -g
-libgstemul_la_LIBADD = $(GST_LIBS) -lgstaudio-0.10 -lgstpbutils-0.10
+libgstemul_la_LIBADD = $(GST_LIBS) -lgstaudio-1.0 -lgstpbutils-1.0
 libgstemul_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgstemul_la_LIBTOOLFLAGS = --tag=disable-static
 
