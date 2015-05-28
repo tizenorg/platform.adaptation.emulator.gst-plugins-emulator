@@ -1,5 +1,5 @@
 Name: gst-plugins-emulator
-Version: 0.3.0
+Version: 1.2.0
 Release: 0
 Summary: GStreamer Decoder and Encoder Plugins for Emulator
 Group: Multimedia/Libraries
