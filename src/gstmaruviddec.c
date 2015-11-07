@@ -923,7 +923,7 @@ gst_maruviddec_handle_frame (GstVideoDecoder * decoder, GstVideoCodecFrame * fra
 
   in_info = gst_ts_info_store (marudec, in_timestamp, in_duration, in_offset);
   GST_LOG_OBJECT (marudec,
-    "Received new data of size %u, offset: %" G_GUINT64_FORMAT ", ts:%"
+    "Received new data of size %zu, offset: %" G_GUINT64_FORMAT ", ts:%"
     GST_TIME_FORMAT ", dur: %" GST_TIME_FORMAT ", info %d",
     mapinfo.size, GST_BUFFER_OFFSET (frame->input_buffer),
     GST_TIME_ARGS (in_timestamp), GST_TIME_ARGS (in_duration), in_info->idx);

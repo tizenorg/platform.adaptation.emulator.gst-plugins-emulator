@@ -28,6 +28,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "gstmaru.h"
 #include "gstmaruinterface.h"
 #include "gstmaruutils.h"
@@ -51,7 +52,7 @@ enum IOCTL_CMD {
 typedef struct {
   uint32_t  api_index;
   uint32_t  ctx_index;
-  uint32_t  mem_offset;
+  uintptr_t  mem_offset;
   int32_t  buffer_size;
 } __attribute__((packed)) IOCTL_Data;
 
@@ -59,7 +60,7 @@ typedef struct {
 #define IOCTL_RW(CMD)           (_IOWR(BRILLCODEC_KEY, CMD, IOCTL_Data))
 
 #define CODEC_META_DATA_SIZE    256
-#define GET_OFFSET(buffer)      ((uint32_t)buffer - (uint32_t)device_mem)
+#define GET_OFFSET(buffer)      ((uintptr_t)buffer - (uintptr_t)device_mem)
 #define SMALLDATA               0
 
 #define OFFSET_PICTURE_BUFFER   0x100
@@ -73,7 +74,7 @@ static inline bool can_use_new_decode_api(void) {
 
 static int
 invoke_device_api(int fd, int32_t ctx_index, int32_t api_index,
-                          uint32_t *mem_offset, int32_t buffer_size)
+                          uintptr_t *mem_offset, int32_t buffer_size)
 {
   GST_DEBUG (" >> Enter");
   IOCTL_Data ioctl_data = { 0, };
@@ -108,8 +109,8 @@ secure_device_mem (int fd, guint ctx_id, guint buf_size, gpointer* buffer)
 
   ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_SECURE_BUFFER), &data);
 
-  *buffer = (gpointer)((uint32_t)device_mem + data.mem_offset);
-  GST_DEBUG ("device_mem %p, offset_size 0x%x", device_mem, data.mem_offset);
+  *buffer = (gpointer)(device_mem + data.mem_offset);
+  GST_DEBUG ("device_mem %p, offset_size 0x%"PRIXPTR, device_mem, data.mem_offset);
 
   GST_DEBUG (" >> Leave");
   return ret;
@@ -172,7 +173,7 @@ init (CodecContext *ctx, CodecElement *codec, CodecDevice *dev)
   int opened = 0;
   gpointer buffer = NULL;
   int ret;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
 
   GST_DEBUG (" >> Enter");
   if ((ctx->index = get_context_index(dev->fd)) <= 0) {
@@ -248,7 +249,7 @@ decode_video (GstMaruVidDec *marudec, uint8_t *inbuf, int inbuf_size,
   CodecDevice *dev = marudec->dev;
   int len = 0, ret = 0;
   gpointer buffer = NULL;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   size_t size = sizeof(inbuf_size) + sizeof(idx) + sizeof(in_offset) + inbuf_size;
 
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
@@ -311,7 +312,7 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
 {
   GST_DEBUG (" >> enter");
   bool is_last_buffer = 0;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   CodecContext *ctx;
   CodecDevice *dev;
   GstMapInfo mapinfo;
@@ -361,7 +362,7 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
     }
 
 
-    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (void *) buffer, mem_offset);
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%"PRIXPTR, (void *) buffer, mem_offset);
   }
 
   gst_buffer_unmap (*buf, &mapinfo);
@@ -376,7 +377,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
 {
   GST_DEBUG (" >> enter");
   bool is_last_buffer = 0;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   GstMaruDec *marudec;
   CodecContext *ctx;
   CodecDevice *dev;
@@ -429,7 +430,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     }
 
 
-    GST_DEBUG ("device memory start: 0x%p, offset 0x%x", (void *) buffer, mem_offset);
+    GST_DEBUG ("device memory start: 0x%p, offset 0x%"PRIXPTR, (void *) buffer, mem_offset);
   }
 
   *buf = gst_buffer_new ();
@@ -466,7 +467,7 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
 {
   int len = 0, ret = 0;
   gpointer buffer = NULL;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   size_t size = sizeof(inbuf_size) + sizeof(in_timestamp) + inbuf_size;
 
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
@@ -491,7 +492,7 @@ encode_video (CodecContext *ctx, uint8_t *outbuf,
     return -1;
   }
 
-  GST_DEBUG ("encode_video. mem_offset = 0x%x", mem_offset);
+  GST_DEBUG ("encode_video. mem_offset = 0x%"PRIXPTR, mem_offset);
 
   struct video_encode_output *encode_output = device_mem + mem_offset;
   len = encode_output->len;
@@ -537,7 +538,7 @@ decode_audio (CodecContext *ctx, int16_t *samples,
 {
   int len = 0, ret = 0;
   gpointer buffer = NULL;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   size_t size = sizeof(inbuf_size) + inbuf_size;
 
   ret = secure_device_mem(dev->fd, ctx->index, size, &buffer);
@@ -561,8 +562,8 @@ decode_audio (CodecContext *ctx, int16_t *samples,
     return -1;
   }
 
-  GST_DEBUG ("decode_audio. ctx_id: %d, buffer = 0x%x",
-    ctx->index, (unsigned int) (device_mem + mem_offset));
+  GST_DEBUG ("decode_audio. ctx_id: %d, buffer = 0x%p",
+    ctx->index, device_mem + mem_offset);
 
   struct audio_decode_output *decode_output = device_mem + mem_offset;
   len = decode_output->len;
@@ -571,7 +572,7 @@ decode_audio (CodecContext *ctx, int16_t *samples,
 
   memcpy (samples, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, len);
 
-  GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld, len %d",
+  GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %" PRIu64 ", len %d",
           ctx->audio.sample_fmt, ctx->audio.sample_rate, ctx->audio.channels,
           ctx->audio.channel_layout, len);
 
@@ -588,7 +589,7 @@ encode_audio (CodecContext *ctx, uint8_t *outbuf,
 {
   int len = 0, ret = 0;
   gpointer buffer = NULL;
-  uint32_t mem_offset;
+  uintptr_t mem_offset;
   size_t size = sizeof(inbuf_size) + inbuf_size;
 
   ret = secure_device_mem(dev->fd, ctx->index, inbuf_size, &buffer);
@@ -610,7 +611,7 @@ encode_audio (CodecContext *ctx, uint8_t *outbuf,
     return -1;
   }
 
-  GST_DEBUG ("encode_audio. mem_offset = 0x%x", mem_offset);
+  GST_DEBUG ("encode_audio. mem_offset = 0x%"PRIXPTR, mem_offset);
 
   struct audio_encode_output *encode_output = device_mem + mem_offset;
   len = encode_output->len;

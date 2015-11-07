@@ -28,6 +28,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "gstmarumem.h"
 
 /*
@@ -190,7 +191,7 @@ codec_decode_audio_data_from (int *have_data, int16_t *samples,
     memcpy (&audio->channel_layout, buffer + size, sizeof(audio->channel_layout));
     size += sizeof(audio->channel_layout);
 
-    GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %lld",
+    GST_DEBUG ("decode_audio. sample_fmt %d sample_rate %d, channels %d, ch_layout %" PRIu64,
       audio->sample_fmt, audio->sample_rate, audio->channels, audio->channel_layout);
 
     memcpy (&resample_size, buffer + size, sizeof(resample_size));

@@ -20,10 +20,10 @@ libgstemul_la_SOURCES = gstmaru.c \
 	gstmaruauddec.c \
 	gstmaruvidenc.c \
 	gstmaruaudenc.c \
-	gstmaruinterface.c \
 	gstmaruinterface3.c \
 	gstmarudevice.c \
 	gstmarumem.c
+
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
 libgstemul_la_CFLAGS = $(GST_CFLAGS) -g

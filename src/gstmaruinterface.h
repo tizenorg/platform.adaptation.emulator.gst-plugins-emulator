@@ -166,7 +166,6 @@ typedef struct _GstMaruAudDec
 
 } GstMaruAudDec;
 
-
 typedef struct {
   int
   (*init) (CodecContext *ctx, CodecElement *codec, CodecDevice *dev);
@@ -205,7 +204,6 @@ typedef struct {
 
 extern Interface *interface;
 
-extern Interface *interface_version_2;
 extern Interface *interface_version_3;
 
 #endif /* __GST_MARU_INTERFACE_H__ */
