@@ -74,10 +74,6 @@ gst_maru_codec_element_init ()
   // if version 3
   device_version = interface_version_3->get_device_version(fd);
   if (device_version < 0) {
-    // if version 2
-    device_version = interface_version_2->get_device_version(fd);
-  }
-  if (device_version < 0) {
     perror ("[gst-maru] Incompatible device version");
     GST_ERROR ("Incompatible device version");
     ret = FALSE;
@@ -85,9 +81,7 @@ gst_maru_codec_element_init ()
   }
 
   // interface mapping
-  if (device_version < 3) {
-    interface = interface_version_2;
-  } else if (device_version >= 3 && device_version < 4) {
+  if (device_version >= 3 && device_version < 4) {
     interface = interface_version_3;
   } else {
     perror ("[gst-maru] Incompatible device version");
