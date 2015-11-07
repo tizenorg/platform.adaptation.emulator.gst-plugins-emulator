@@ -166,12 +166,14 @@ typedef struct _GstMaruAudDec
 
 } GstMaruAudDec;
 
-
 typedef struct {
   int
   (*init) (CodecContext *ctx, CodecElement *codec, CodecDevice *dev);
   void
   (*deinit) (CodecContext *ctx, CodecDevice *dev);
+  int
+  (*decode_video_legacy) (GstMaruDec *marudec, uint8_t *in_buf, int in_size,
+                    gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data);
   int
   (*decode_video) (GstMaruVidDec *marudec, uint8_t *in_buf, int in_size,
                     gint idx, gint64 in_offset, GstBuffer **out_buf, int *have_data);
@@ -205,7 +207,6 @@ typedef struct {
 
 extern Interface *interface;
 
-extern Interface *interface_version_2;
 extern Interface *interface_version_3;
 
 #endif /* __GST_MARU_INTERFACE_H__ */
