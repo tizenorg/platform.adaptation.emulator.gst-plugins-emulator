@@ -354,11 +354,11 @@ gst_marudec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
   gboolean ret = FALSE;
 
   marudec = (GstMaruVidDec *) decoder;
-  oclass = (GstMaruVidDecClass *) (G_OBJECT_GET_CLASS (marudec));
   if (!marudec) {
       GST_ERROR ("invalid marudec");
     return FALSE;
   }
+  oclass = (GstMaruVidDecClass *) (G_OBJECT_GET_CLASS (marudec));
   if (marudec->last_caps != NULL &&
       gst_caps_is_equal (marudec->last_caps, state->caps)) {
     return TRUE;

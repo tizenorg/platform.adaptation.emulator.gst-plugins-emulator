@@ -292,9 +292,11 @@ gst_maruaudenc_set_format (GstAudioEncoder *encoder, GstAudioInfo *info)
   */
   if (!maruaudenc->context) {
     GST_ERROR("ctx NULL");
+	return FALSE;
   }
   if (!maruaudenc->context->codec) {
     GST_ERROR("codec NULL");
+	return FALSE;
   }
   gst_maru_audioinfo_to_context (info, maruaudenc->context);
 

@@ -680,6 +680,7 @@ prepare_elements (int fd)
     elements = g_list_append (elements, &elem[i]);
   }
 
+  g_free (elem);
   return elements;
 }
 
