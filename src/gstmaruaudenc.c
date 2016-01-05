@@ -259,6 +259,11 @@ gst_maruaudenc_set_format (GstAudioEncoder *encoder, GstAudioInfo *info)
   GstCaps *icaps;
   gsize frame_size;
 
+  if (!maruaudenc) {
+    GST_ERROR("invalid maru audio encoder");
+	return FALSE:
+  }
+
   GstMaruAudEncClass *oclass =
     (GstMaruAudEncClass *) (G_OBJECT_GET_CLASS (maruaudenc));
 
