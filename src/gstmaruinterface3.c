@@ -311,7 +311,7 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
 {
   GST_DEBUG (" >> enter");
-  bool is_last_buffer = 0;
+//  bool is_last_buffer = 0;
   uintptr_t mem_offset;
   CodecContext *ctx;
   CodecDevice *dev;
@@ -321,7 +321,7 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
   dev = marudec->dev;
 
   if (marudec->is_using_new_decode_api) {
-    is_last_buffer = marudec->is_last_buffer;
+//    is_last_buffer = marudec->is_last_buffer;
     mem_offset = marudec->mem_offset;
   } else {
     ctx = marudec->context;
@@ -333,25 +333,28 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
       GST_DEBUG ("failed to get available buffer");
       return GST_FLOW_ERROR;
     }
-    is_last_buffer = ret;
+//    is_last_buffer = ret;
   }
 
-  gpointer *buffer = NULL;
-  is_last_buffer = 1;
-  if (is_last_buffer) {
-    // FIXME: we must aligned buffer offset.
-    //buffer = g_malloc (size);
-    gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);
+//  gpointer *buffer = NULL;
+// FIXME: consider to check last_buffer
+//  is_last_buffer = 1;
+//  if (is_last_buffer) {
 
-    if (marudec->is_using_new_decode_api) {
-      memcpy (mapinfo.data, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
-    } else {
-      memcpy (mapinfo.data, device_mem + mem_offset, size);
-    }
-    release_device_mem(dev->fd, device_mem + mem_offset);
+// FIXME: we must aligned buffer offset.
+//    buffer = g_malloc (size);
+  gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);
 
-    GST_DEBUG ("secured last buffer!! Use heap buffer");
+  if (marudec->is_using_new_decode_api) {
+    memcpy (mapinfo.data, device_mem + mem_offset + OFFSET_PICTURE_BUFFER, size);
   } else {
+    memcpy (mapinfo.data, device_mem + mem_offset, size);
+  }
+  release_device_mem(dev->fd, device_mem + mem_offset);
+
+  GST_DEBUG ("secured last buffer!! Use heap buffer");
+/*
+} else {
     // address of "device_mem" and "opaque" is aleady aligned.
     if (marudec->is_using_new_decode_api) {
       buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
@@ -361,10 +364,9 @@ alloc_and_copy (GstMaruVidDec *marudec, guint64 offset, guint size,
       //GST_BUFFER_FREE_FUNC (*buf) = buffer_free;
     }
 
-
     GST_DEBUG ("device memory start: 0x%p, offset 0x%"PRIXPTR, (void *) buffer, mem_offset);
   }
-
+*/
   gst_buffer_unmap (*buf, &mapinfo);
 
   GST_DEBUG (" >> leave");
@@ -376,7 +378,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
                   GstCaps *caps, GstBuffer **buf)
 {
   GST_DEBUG (" >> enter");
-  bool is_last_buffer = 0;
+//  bool is_last_buffer = 0;
   uintptr_t mem_offset;
   GstMaruDec *marudec;
   CodecContext *ctx;
@@ -388,7 +390,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
   dev = marudec->dev;
 
   if (marudec->is_using_new_decode_api) {
-    is_last_buffer = marudec->is_last_buffer;
+//    is_last_buffer = marudec->is_last_buffer;
     mem_offset = marudec->mem_offset;
   } else {
     ctx = marudec->context;
@@ -402,13 +404,14 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
       GST_DEBUG ("failed to get available buffer");
       return GST_FLOW_ERROR;
     }
-    is_last_buffer = ret;
+//    is_last_buffer = ret;
   }
 
   gpointer *buffer = NULL;
-  is_last_buffer = 1;
-  if (is_last_buffer) {
-    // FIXME: we must aligned buffer offset.
+// FIXME: consider to check last_buffer
+//  is_last_buffer = 1;
+//  if (is_last_buffer) {
+// FIXME: we must aligned buffer offset.
     buffer = g_malloc (size);
 
     if (marudec->is_using_new_decode_api) {
@@ -419,7 +422,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
     release_device_mem(dev->fd, device_mem + mem_offset);
 
     GST_DEBUG ("secured last buffer!! Use heap buffer");
-  } else {
+/*  } else {
     // address of "device_mem" and "opaque" is aleady aligned.
     if (marudec->is_using_new_decode_api) {
       buffer = (gpointer)(device_mem + mem_offset + OFFSET_PICTURE_BUFFER);
@@ -432,7 +435,7 @@ buffer_alloc_and_copy (GstPad *pad, guint64 offset, guint size,
 
     GST_DEBUG ("device memory start: 0x%p, offset 0x%"PRIXPTR, (void *) buffer, mem_offset);
   }
-
+*/
   *buf = gst_buffer_new ();
   //*buf = gst_buffer_new_and_alloc (size);
   gst_buffer_map (*buf, &mapinfo, GST_MAP_READWRITE);

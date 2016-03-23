@@ -987,15 +987,17 @@ gst_maru_audio_caps_new (CodecContext *ctx, const char *name,
     } else {
      // TODO
     }
-
-    if (maxchannels == 1) {
+//TODO Not use the mono type at the moment.
+/*    if (maxchannels == 1) {
       caps = gst_caps_new_simple(mimetype,
               "channels", G_TYPE_INT, maxchannels, NULL);
     } else {
       caps = gst_caps_new_simple(mimetype,
               "channels", GST_TYPE_INT_RANGE, 1, maxchannels, NULL);
     }
-
+*/
+    caps = gst_caps_new_simple(mimetype,
+			"channels", GST_TYPE_INT_RANGE, 1, maxchannels, NULL);
     if (n_rates) {
       GValue list = { 0, };
       //GstStructure *structure;
