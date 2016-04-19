@@ -137,19 +137,15 @@ plugin_init (GstPlugin *plugin)
   g_mutex_unlock (&gst_maru_mutex);
   if (!gst_maruviddec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
-    return FALSE;
   }
   if (!gst_maruauddec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
-    return FALSE;
   }
   if (!gst_maruvidenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
-    return FALSE;
   }
   if (!gst_maruaudenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
-    return FALSE;
   }
   return TRUE;
 }
@@ -164,7 +160,7 @@ GST_PLUGIN_DEFINE (
   tizen-emul,
   "Codecs for Tizen Emulator",
   plugin_init,
-  "1.2.0",
+  "1.2.2",
   "LGPL",
   "gst-plugins-emulator",
   "http://www.tizen.org"
