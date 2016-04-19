@@ -670,6 +670,8 @@ prepare_elements (int fd)
   }
 
   elem = g_malloc(size);
+  //FIXME
+  //An elem variable should be deallocated, will be fixed.
 
   ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS), elem);
   if (ret < 0) {
@@ -683,7 +685,6 @@ prepare_elements (int fd)
     elements = g_list_append (elements, &elem[i]);
   }
 
-  g_free (elem);
   return elements;
 }
 
