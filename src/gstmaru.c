@@ -58,8 +58,7 @@ static gboolean
 gst_maru_codec_element_init ()
 {
   int fd = 0, ret = TRUE;
-  void *buffer = MAP_FAILED;
-
+//int dmabuf_fd = 0;
   codec_element_init = TRUE;
 
   fd = open (CODEC_DEV, O_RDWR);
@@ -69,26 +68,9 @@ gst_maru_codec_element_init ()
     ret = FALSE;
     goto out;
   }
-
-  // get device version
-  // if version 3
-  device_version = interface_version_3->get_device_version(fd);
-  if (device_version < 0) {
-    perror ("[gst-maru] Incompatible device version");
-    GST_ERROR ("Incompatible device version");
-    ret = FALSE;
-    goto out;
-  }
-
-  // interface mapping
-  if (device_version >= 3 && device_version < 4) {
-    interface = interface_version_3;
-  } else {
-    perror ("[gst-maru] Incompatible device version");
-    GST_ERROR ("Incompatible device version");
-    ret = FALSE;
-    goto out;
-  }
+  interface = interface_version_4;
+  // query capability
+  interface->query_capability(fd);
 
   // prepare elements
   if ((elements = interface->prepare_elements(fd)) == NULL) {
@@ -98,6 +80,31 @@ gst_maru_codec_element_init ()
     goto out;
   }
 
+// for temporary ioctl TEST
+/*
+  struct v4l2_exportbuffer expbuf = { 0 };
+  expbuf.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;  
+  expbuf.index = 0;
+  expbuf.plane = 0;
+  expbuf.flags = O_CLOEXEC | O_RDWR;
+
+  if (ioctl(fd, VIDIOC_EXPBUF, &expbuf) < 0) {
+    perror ("[Brillcodec] failed to get dmabuf_fd");
+	GST_ERROR ("failed to get dmabuf_fd");
+  } else {
+    GST_LOG ("GET DMABUF as fd %i ", expbuf.fd);
+  }
+
+  dmabuf_fd = interface->get_dmabuf_fd(fd);
+  if (dmabuf_fd < 0) {
+    perror ("[Brillcodec] failed to export dmabuf_fd");
+	GST_ERROR ("failed to get dmabuf_fd");
+  } else {
+    GST_LOG ("exported DMABUF as fd");
+  }
+  
+  goto out;
+
   // try to mmap device memory
   buffer = mmap (NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (buffer == MAP_FAILED) {
@@ -105,11 +112,8 @@ gst_maru_codec_element_init ()
     GST_ERROR ("memory mapping failure");
     ret = FALSE;
   }
-
+*/
 out:
-  if (buffer != MAP_FAILED) {
-    munmap (buffer, 4096);
-  }
   if (fd >= 0) {
     close (fd);
   }
@@ -137,19 +141,15 @@ plugin_init (GstPlugin *plugin)
   g_mutex_unlock (&gst_maru_mutex);
   if (!gst_maruviddec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
-    return FALSE;
   }
   if (!gst_maruauddec_register (plugin, elements)) {
     GST_ERROR ("failed to register decoder elements");
-    return FALSE;
   }
   if (!gst_maruvidenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
-    return FALSE;
   }
   if (!gst_maruaudenc_register (plugin, elements)) {
     GST_ERROR ("failed to register encoder elements");
-    return FALSE;
   }
   return TRUE;
 }
@@ -164,7 +164,7 @@ GST_PLUGIN_DEFINE (
   tizen-emul,
   "Codecs for Tizen Emulator",
   plugin_init,
-  "1.2.0",
+  "1.2.2",
   "LGPL",
   "gst-plugins-emulator",
   "http://www.tizen.org"

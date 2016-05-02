@@ -56,7 +56,7 @@ typedef struct {
   int32_t  buffer_size;
 } __attribute__((packed)) IOCTL_Data;
 
-#define BRILLCODEC_KEY         'V'
+#define BRILLCODEC_KEY         'V' //Same as VIDEO DEVICE KEY
 #define IOCTL_RW(CMD)           (_IOWR(BRILLCODEC_KEY, CMD, IOCTL_Data))
 
 #define CODEC_META_DATA_SIZE    256
@@ -65,11 +65,19 @@ typedef struct {
 
 #define OFFSET_PICTURE_BUFFER   0x100
 
-static inline bool can_use_new_decode_api(void) {
-    if (CHECK_VERSION(3)) {
-        return true;
-    }
-    return false;
+static void
+query_capability(int fd)
+{
+  GST_DEBUG (" >> Enter");
+  struct v4l2_capability cap;
+  memset (&cap, 0, sizeof (cap));
+  if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0 ) {
+    perror ("[gst-interface] failed to query capability");
+	GST_ERROR ("cannot query capability");
+  } else {
+    GST_INFO (" capabilities = %d", cap.capabilities);
+  }
+  GST_DEBUG (" >> Leave");
 }
 
 static int
@@ -267,7 +275,7 @@ decode_video (GstMaruVidDec *marudec, uint8_t *inbuf, int inbuf_size,
 
   mem_offset = GET_OFFSET(buffer);
 
-  marudec->is_using_new_decode_api = (can_use_new_decode_api() && (ctx->video.pix_fmt != -1));
+  marudec->is_using_new_decode_api =  (ctx->video.pix_fmt != -1);
   if (marudec->is_using_new_decode_api) {
     int picture_size = gst_maru_avpicture_size (ctx->video.pix_fmt,
         ctx->video.width, ctx->video.height);
@@ -640,7 +648,7 @@ flush_buffers (CodecContext *ctx, CodecDevice *dev)
   GST_DEBUG ("flush buffers of context: %d", ctx->index);
   invoke_device_api (dev->fd, ctx->index, CODEC_FLUSH_BUFFERS, NULL, -1);
 }
-
+/*
 static int
 get_dmabuf_fd (int fd)
 {
@@ -672,6 +680,7 @@ get_device_version (int fd)
 
   return device_version;
 }
+*/
 
 static GList *
 prepare_elements (int fd)
@@ -681,8 +690,8 @@ prepare_elements (int fd)
   GList *elements = NULL;
   CodecElement *elem;
 
-  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS_SIZE, &size);
   //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS_SIZE), &size);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS_SIZE, &size);
   if (ret < 0) {
     GST_ERROR ("get_elements_size failed");
     return NULL;
@@ -692,8 +701,8 @@ prepare_elements (int fd)
   //FIXME
   //An elem variable should be deallocated, will be fixed.
 
-  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS, elem);
   //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS), elem);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS, elem);
   if (ret < 0) {
     GST_ERROR ("get_elements failed");
     g_free (elem);
@@ -723,7 +732,7 @@ get_profile_status (int fd)
 }
 
 // Interfaces
-Interface *interface_version_3 = &(Interface) {
+Interface *interface_version_4 = &(Interface) {
   .init = init,
   .deinit = deinit,
   .decode_video = decode_video,
@@ -732,8 +741,7 @@ Interface *interface_version_3 = &(Interface) {
   .encode_audio = encode_audio,
   .flush_buffers = flush_buffers,
   .buffer_alloc_and_copy = buffer_alloc_and_copy,
-  .get_device_version = get_device_version,
   .prepare_elements = prepare_elements,
+  .query_capability = query_capability,
   .get_profile_status = get_profile_status,
-  .get_dmabuf_fd = get_dmabuf_fd
 };
