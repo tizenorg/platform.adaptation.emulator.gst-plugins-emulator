@@ -194,16 +194,21 @@ typedef struct {
   GstFlowReturn
   (*buffer_alloc_and_copy) (GstPad *pad, guint64 offset,
                     guint size, GstCaps *caps, GstBuffer **buf);
+/*  int
+  (*get_device_version) (int fd); 
   int
-  (*get_device_version) (int fd);
+  (*get_dmabuf_fd) (int fd); */
   GList *
   (*prepare_elements) (int fd);
   int
   (*get_profile_status) (int fd);
+  void
+  (*query_capability) (int fd);
+  void
+  (*test_dmabuf_flow) (int fd);
 } Interface;
 
 extern Interface *interface;
-
-extern Interface *interface_version_3;
+extern Interface *interface_version_4;
 
 #endif /* __GST_MARU_INTERFACE_H__ */

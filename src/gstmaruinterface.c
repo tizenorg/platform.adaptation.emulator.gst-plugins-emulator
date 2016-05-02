@@ -29,6 +29,7 @@
  */
 
 #include <inttypes.h>
+#include <assert.h>
 #include "gstmaru.h"
 #include "gstmaruinterface.h"
 #include "gstmaruutils.h"
@@ -56,7 +57,7 @@ typedef struct {
   int32_t  buffer_size;
 } __attribute__((packed)) IOCTL_Data;
 
-#define BRILLCODEC_KEY         'V'
+#define BRILLCODEC_KEY         'V' //Same as VIDEO DEVICE KEY
 #define IOCTL_RW(CMD)           (_IOWR(BRILLCODEC_KEY, CMD, IOCTL_Data))
 
 #define CODEC_META_DATA_SIZE    256
@@ -65,11 +66,19 @@ typedef struct {
 
 #define OFFSET_PICTURE_BUFFER   0x100
 
-static inline bool can_use_new_decode_api(void) {
-    if (CHECK_VERSION(3)) {
-        return true;
-    }
-    return false;
+static void
+query_capability(int fd)
+{
+  GST_DEBUG (" >> Enter");
+  struct v4l2_capability cap;
+  memset (&cap, 0, sizeof (cap));
+  if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0 ) {
+    perror ("[gst-interface] failed to query capability");
+	GST_ERROR ("cannot query capability");
+  } else {
+    GST_INFO (" capabilities = %d", cap.capabilities);
+  }
+  GST_DEBUG (" >> Leave");
 }
 
 static int
@@ -267,7 +276,7 @@ decode_video (GstMaruVidDec *marudec, uint8_t *inbuf, int inbuf_size,
 
   mem_offset = GET_OFFSET(buffer);
 
-  marudec->is_using_new_decode_api = (can_use_new_decode_api() && (ctx->video.pix_fmt != -1));
+  marudec->is_using_new_decode_api =  (ctx->video.pix_fmt != -1);
   if (marudec->is_using_new_decode_api) {
     int picture_size = gst_maru_avpicture_size (ctx->video.pix_fmt,
         ctx->video.width, ctx->video.height);
@@ -640,7 +649,7 @@ flush_buffers (CodecContext *ctx, CodecDevice *dev)
   GST_DEBUG ("flush buffers of context: %d", ctx->index);
   invoke_device_api (dev->fd, ctx->index, CODEC_FLUSH_BUFFERS, NULL, -1);
 }
-
+/*
 static int
 get_dmabuf_fd (int fd)
 {
@@ -672,6 +681,126 @@ get_device_version (int fd)
 
   return device_version;
 }
+*/
+static void
+test_dmabuf_flow (int fd)
+{
+/*
+enum v4l2_buf_type {
+V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,
+V4L2_BUF_TYPE_VIDEO_OUTPUT         = 2,
+V4L2_BUF_TYPE_VIDEO_OVERLAY        = 3,
+V4L2_BUF_TYPE_VBI_CAPTURE          = 4,
+V4L2_BUF_TYPE_VBI_OUTPUT           = 5,
+V4L2_BUF_TYPE_SLICED_VBI_CAPTURE   = 6,
+V4L2_BUF_TYPE_SLICED_VBI_OUTPUT    = 7,
+#if 1
+Experimental
+V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,
+#endif
+V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
+V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
+ Deprecated, do not use 
+V4L2_BUF_TYPE_PRIVATE              = 0x80,
+};
+*/
+ // struct v4l2_create_buffers bcreate = { 0 };
+#if 0
+
+  bcreate.memory = vtype;
+  bcreate.format = V4L2_MEMORY_MMAP;
+  bcreate.count = 1;
+
+  if (ioctl (fd, VIDIOC_CREATE_BUFS, &bcreate) < 0) {
+    perror ("[gst-inteface] cannot create buf");
+    GST_ERROR ("cannot create buf");
+  }else {
+    GST_INFO ("Succeed to create dma-buf");
+  }
+#endif
+
+  enum v4l2_buf_type vtype = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  struct v4l2_requestbuffers reqbuf;
+  struct {
+	  void *start;
+	  size_t length;
+  } *buffers;
+  unsigned int i;
+
+  memset(&reqbuf, 0, sizeof(reqbuf));
+  reqbuf.type = vtype;
+  reqbuf.memory = V4L2_MEMORY_MMAP;
+  reqbuf.count = 10;
+
+  if (ioctl (fd, VIDIOC_REQBUFS, &reqbuf) == -1 ) {
+	  perror("[gst-interface] cannot request DMABUF");
+      GST_ERROR ("cannot request dmabuf");
+  }else {
+      GST_INFO ("Succeed to request dmabuf");
+  }
+
+  if (reqbuf.count < 5) {
+	  perror("[gst-interface] request result 0");
+      GST_ERROR ("request failed.");
+  }
+
+  buffers = calloc(reqbuf.count, sizeof(*buffers));
+  assert(buffers != NULL);
+
+  for (i = 0; i < reqbuf.count; i++) {
+	  struct v4l2_buffer querybuf;
+	  memset(&querybuf, 0, sizeof(querybuf));
+	  querybuf.type = reqbuf.type;
+	  querybuf.memory = V4L2_MEMORY_MMAP;
+	  querybuf.index = i;
+
+	  if (ioctl (fd, VIDIOC_QUERYBUF, &querybuf) == -1 ) {
+		  perror("[gst-interface] cannot query DMABUF");
+		  GST_ERROR ("cannot query dmabuf");
+	  }else {
+		  GST_INFO ("Succeed to query dmabuf. length: %d, offset: %d",
+				  querybuf.length, querybuf.m.offset);
+	  }
+
+	  buffers[i].length = querybuf.length;
+	  buffers[i].start = mmap(NULL, querybuf.length,
+			  PROT_READ | PROT_WRITE,
+			  MAP_SHARED,
+			  fd, querybuf.m.offset);
+	  if (MAP_FAILED == buffers[i].start) {
+		  perror("[gst-interface] MMAP failed");
+	  }
+
+	  struct v4l2_exportbuffer expbuf;
+	  memset(&expbuf, 0, sizeof(expbuf));
+	  expbuf.type = vtype;
+	  expbuf.index = i;
+	  expbuf.flags = O_CLOEXEC | O_RDWR;
+
+	  if (ioctl (fd, VIDIOC_EXPBUF, &expbuf) == -1 ) {
+		  perror("[gst-interface] cannot export DMABUF");
+		  GST_ERROR ("cannot export dmabuf");
+	  }else {
+		  GST_INFO ("Succeed to export dmabuf FD = %d", expbuf.fd);
+	  }
+  }
+#if 1
+  if (ioctl (fd, VIDIOC_STREAMON, &vtype) < 0) {
+    perror ("[gst-inteface] cannot stream on");
+    GST_ERROR ("cannot stream on");
+  }else {
+    GST_INFO ("Start stream on");
+  }
+#endif
+#if 0
+  if (ioctl (fd, VIDIOC_STREAMOFF, &vtype) < 0) {
+    perror ("[gst-inteface] cannot stream off");
+    GST_ERROR ("cannot stream off");
+  }else {
+    GST_INFO ("Succeed to start stream off");
+  }
+#endif
+}
 
 static GList *
 prepare_elements (int fd)
@@ -681,8 +810,8 @@ prepare_elements (int fd)
   GList *elements = NULL;
   CodecElement *elem;
 
-  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS_SIZE, &size);
   //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS_SIZE), &size);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS_SIZE, &size);
   if (ret < 0) {
     GST_ERROR ("get_elements_size failed");
     return NULL;
@@ -692,8 +821,8 @@ prepare_elements (int fd)
   //FIXME
   //An elem variable should be deallocated, will be fixed.
 
-  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS, elem);
   //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS), elem);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS, elem);
   if (ret < 0) {
     GST_ERROR ("get_elements failed");
     g_free (elem);
@@ -723,7 +852,7 @@ get_profile_status (int fd)
 }
 
 // Interfaces
-Interface *interface_version_3 = &(Interface) {
+Interface *interface_version_4 = &(Interface) {
   .init = init,
   .deinit = deinit,
   .decode_video = decode_video,
@@ -732,8 +861,8 @@ Interface *interface_version_3 = &(Interface) {
   .encode_audio = encode_audio,
   .flush_buffers = flush_buffers,
   .buffer_alloc_and_copy = buffer_alloc_and_copy,
-  .get_device_version = get_device_version,
   .prepare_elements = prepare_elements,
+  .query_capability = query_capability,
+  .test_dmabuf_flow = test_dmabuf_flow,
   .get_profile_status = get_profile_status,
-  .get_dmabuf_fd = get_dmabuf_fd
 };

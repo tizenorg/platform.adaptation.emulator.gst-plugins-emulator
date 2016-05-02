@@ -47,6 +47,9 @@
 #include <gst/video/gstvideodecoder.h>
 #include "pixfmt.h"
 
+#include "types-compat.h"
+#include "ext/videodev2.h"
+
 GST_DEBUG_CATEGORY_EXTERN (maru_debug);
 #define GST_CAT_DEFAULT maru_debug
 
@@ -62,9 +65,6 @@ enum codec_log_level {
 };
 
 #define CODEC_DEV   "/dev/brillcodec"
-#define CODEC_VER   3
-
-#define CHECK_VERSION(version)        (device_version >= version)
 
 #define CODEC_LOG(level, fmt, ...) \
   do { \
