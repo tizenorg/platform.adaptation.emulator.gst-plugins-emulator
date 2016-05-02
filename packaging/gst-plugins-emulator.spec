@@ -9,6 +9,7 @@ Source1001: packaging/%{name}.manifest
 BuildRequires:  pkgconfig(gstreamer-1.0)
 BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
 BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  gst-plugins-good
 
 %description
 It includes video/audio decoders and encoders for Emulator

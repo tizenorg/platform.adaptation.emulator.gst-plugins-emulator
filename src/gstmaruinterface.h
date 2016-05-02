@@ -32,8 +32,13 @@
 #define __GST_MARU_INTERFACE_H__
 
 #include "gstmaru.h"
+#include "gstv4l2object.h"
 
 #define MAX_TS_MASK 0xff
+
+enum {
+  PROP_IO_MODE
+};
 
 enum CODEC_FUNC_TYPE {
   CODEC_INIT = 0,
@@ -46,6 +51,15 @@ enum CODEC_FUNC_TYPE {
   CODEC_FLUSH_BUFFERS,
   CODEC_DECODE_VIDEO_AND_PICTURE_COPY, // version 3
 };
+
+typedef enum {
+  GST_MARU_IO_AUTO          = 0,
+  GST_MARU_IO_RW            = 1,
+  GST_MARU_IO_MMAP          = 2,
+  GST_MARU_IO_USERPTR       = 3,
+  GST_MARU_IO_DMABUF        = 4,
+  GST_MARU_IO_DMABUF_IMPORT = 5
+} GstMaruIOMode;
 
 typedef struct
 {
@@ -101,6 +115,8 @@ typedef struct _GstMaruVidDec
   int max_threads;
 
   GstCaps *last_caps;
+  GstV4l2Object * v4l2output;
+  GstMaruIOMode mode;
 } GstMaruVidDec;
 
 typedef struct _GstMaruDec
@@ -194,16 +210,21 @@ typedef struct {
   GstFlowReturn
   (*buffer_alloc_and_copy) (GstPad *pad, guint64 offset,
                     guint size, GstCaps *caps, GstBuffer **buf);
+/*  int
+  (*get_device_version) (int fd); 
   int
-  (*get_device_version) (int fd);
+  (*get_dmabuf_fd) (int fd); */
   GList *
   (*prepare_elements) (int fd);
   int
   (*get_profile_status) (int fd);
+  void
+  (*query_capability) (int fd);
+  void
+  (*test_dmabuf_flow) (int fd);
 } Interface;
 
 extern Interface *interface;
-
-extern Interface *interface_version_3;
+extern Interface *interface_version_4;
 
 #endif /* __GST_MARU_INTERFACE_H__ */

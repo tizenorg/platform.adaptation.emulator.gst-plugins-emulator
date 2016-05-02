@@ -55,6 +55,10 @@ static void gst_maruviddec_base_init (GstMaruVidDecClass *klass);
 static void gst_maruviddec_class_init (GstMaruVidDecClass *klass);
 static void gst_maruviddec_init (GstMaruVidDec *marudec);
 static void gst_maruviddec_finalize (GObject *object);
+static void gst_marudec_set_property (GObject *object, guint prop_id,
+		  const GValue *value, GParamSpec * pspec);
+static void gst_marudec_get_property (GObject *object, guint prop_id,
+		  GValue *value, GParamSpec *pspec);
 
 static gboolean gst_marudec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state);
 static GstFlowReturn gst_maruviddec_handle_frame (GstVideoDecoder * decoder, GstVideoCodecFrame * frame);
@@ -149,6 +153,7 @@ static void end_video_decode_profile(void)
   if (profile_init) {           \
     reset_codec_profile();      \
   }
+
 #define BEGIN_VIDEO_DECODE_PROFILE()  \
   if (profile_init) {                 \
     begin_video_decode_profile();     \
@@ -312,10 +317,8 @@ gst_maruviddec_class_init (GstMaruVidDecClass *klass)
 
   gobject_class->finalize = gst_maruviddec_finalize;
 
-  /* use these function when defines new properties.
-  gobject_class->set_property = gst_marudec_set_property
-  gobject_class->get_property = gst_marudec_get_property
-  */
+  gobject_class->set_property = gst_marudec_set_property;
+  gobject_class->get_property = gst_marudec_get_property;
 
   viddec_class->set_format = gst_marudec_set_format;
   viddec_class->handle_frame = gst_maruviddec_handle_frame;
@@ -360,8 +363,11 @@ gst_marudec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
   }
   oclass = (GstMaruVidDecClass *) (G_OBJECT_GET_CLASS (marudec));
   if (marudec->last_caps != NULL &&
-      gst_caps_is_equal (marudec->last_caps, state->caps)) {
+      gst_caps_is_equal (marudec->last_caps, state->caps))  {
     return TRUE;
+  } else {
+	// init v4l2bufferpool
+    ret = gst_v4l2_object_set_format (marudec->v4l2output, state->caps);
   }
 
   GST_DEBUG_OBJECT (marudec, "setcaps called.");
@@ -734,7 +740,10 @@ gst_maruviddec_video_frame (GstMaruVidDec *marudec, guint8 *data, guint size,
   GstClockTime out_timestamp, out_duration, out_pts;
   gint64 out_offset;
   const GstTSInfo *out_info;
-  int have_data;
+  //int have_data;
+  GstBufferPool *pool;
+  GstBuffer *buffer = NULL;
+
 
   /* run QoS code, we don't stop decoding the frame when we are late because
    * else we might skip a reference frame */
@@ -744,18 +753,64 @@ gst_maruviddec_video_frame (GstMaruVidDec *marudec, guint8 *data, guint size,
 
   // begin video decode profile
   BEGIN_VIDEO_DECODE_PROFILE();
-
+/*
   len = interface->decode_video (marudec, data, size,
         dec_info->idx, in_offset, NULL, &have_data);
   if (len < 0 || !have_data) {
     GST_ERROR ("decode video failed, len = %d", len);
     return len;
   }
-
+*/
   // end video decode profile
   END_VIDEO_DECODE_PROFILE();
+//
+//get pool
+//  pool = gst_video_decoder_get_buffer_pool (GST_VIDEO_DECODER (marudec));
+//  need to check upper api
+  pool = marudec->v4l2output->pool;
 
-  *ret = get_output_buffer (marudec, frame);
+//conditional statement for buffer
+  if (pool == NULL) {
+    GST_LOG ("buffer pool is NULL");
+	return len;
+  }
+
+  if (frame->input_buffer) {
+	GST_VIDEO_DECODER_STREAM_UNLOCK (marudec);
+    *ret = gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (pool) , &frame->input_buffer);
+	GST_VIDEO_DECODER_STREAM_LOCK (marudec);
+
+
+  }
+  /*
+  *ret = gst_buffer_pool_acquire_buffer (pool, &buffer, NULL);
+
+  else
+  if ( G_UNLIKELY (frame->output_buffer == NULL)) {
+    GST_LOG ("gst_buffer_pool_acquire_buffer but ouput_buffer is NULL BEFORE");
+    *ret = gst_buffer_pool_acquire_buffer (pool, &buffer, NULL);
+	if (ret != GST_FLOW_OK) {
+      GST_LOG ("gst_buffer_pool_acquire_buffer but ouput_buffer is NULL");
+	  return len;
+	}
+
+    GST_LOG_OBJECT (marudec, "Process output buffer");
+    GST_LOG ("Process output buffer is NULL");
+    *ret = gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (marudec->v4l2output->pool) , &buffer);
+
+  } else if (G_UNLIKELY (frame->output_buffer->pool != pool)) {
+    GST_LOG ("Process output buffer is Not NULL");
+    GstBuffer *tmp =  frame->output_buffer;
+    frame->output_buffer = NULL;
+    *ret = get_output_buffer (marudec, frame);
+    gst_buffer_unref (tmp);
+  }
+  gst_object_unref (pool);
+*/
+
+
+
+//  *ret = get_output_buffer (marudec, frame);
   if (G_UNLIKELY (*ret != GST_FLOW_OK)) {
     GST_DEBUG_OBJECT (marudec, "no output buffer");
     len = -1;
@@ -855,12 +910,12 @@ gst_maruviddec_frame (GstMaruVidDec *marudec, guint8 *data, guint size,
   GstMaruVidDecClass *oclass;
   gint have_data = 0, len = 0;
 
-  if (G_UNLIKELY (marudec->context->codec == NULL)) {
+/*  if (G_UNLIKELY (marudec->context->codec == NULL)) {
     GST_ERROR_OBJECT (marudec, "no codec context");
     return -1;
   }
   GST_LOG_OBJECT (marudec, "data:%p, size:%d", data, size);
-
+*/
   *ret = GST_FLOW_OK;
   oclass = (GstMaruVidDecClass *) (G_OBJECT_GET_CLASS (marudec));
 
@@ -992,3 +1047,65 @@ gst_maruviddec_register (GstPlugin *plugin, GList *element)
 
   return TRUE;
 }
+
+
+static void
+gst_marudec_set_property (GObject * object,
+    guint prop_id, const GValue * value, GParamSpec * pspec)
+{
+  GstMaruVidDec *marudec = (GstMaruVidDec *) (object);
+
+  switch (prop_id) {
+    case PROP_IO_MODE:
+	{
+	  marudec->v4l2output->req_mode = g_value_get_enum (value);
+	  GST_LOG (" >> DIRECT SINK ON");
+      break;
+	}
+      /* By default, only set on output */
+    default:
+	  G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+gst_marudec_get_property (GObject *object, guint prop_id,
+		  GValue *value, GParamSpec *pspec)
+{
+  GST_DEBUG (" >> ENTER");
+  GstMaruVidDec *marudec;
+
+  marudec = (GstMaruVidDec *) (object);
+
+  switch (prop_id) {
+    case PROP_IO_MODE:
+    {
+      g_value_set_enum (value, marudec->v4l2output->req_mode);
+      break;
+    }
+  default:
+     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+     break;
+  }
+}
+/*
+static gboolean
+gst_marudec_decide_allocation (GstVideoDecoder * decoder,
+    GstQuery * query)
+{
+  GstMaruVidDec *marudec = GST_V4L2_VIDEO_DEC (decoder);
+  GstClockTime latency;
+  gboolean ret = FALSE;
+
+  if (gst_v4l2_object_decide_allocation (self->v4l2capture, query))
+    ret = GST_VIDEO_DECODER_CLASS (parent_class)->decide_allocation (decoder,
+	query);
+
+  latency = self->v4l2capture->min_buffers_for_capture *
+      self->v4l2capture->duration;
+  gst_video_decoder_set_latency (decoder, latency, latency);
+
+  return ret;
+}
+*/

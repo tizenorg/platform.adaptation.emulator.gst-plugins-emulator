@@ -47,6 +47,9 @@
 #include <gst/video/gstvideodecoder.h>
 #include "pixfmt.h"
 
+#include "ext/types-compat.h"
+#include "ext/videodev2.h"
+
 GST_DEBUG_CATEGORY_EXTERN (maru_debug);
 #define GST_CAT_DEFAULT maru_debug
 
@@ -62,9 +65,6 @@ enum codec_log_level {
 };
 
 #define CODEC_DEV   "/dev/brillcodec"
-#define CODEC_VER   3
-
-#define CHECK_VERSION(version)        (device_version >= version)
 
 #define CODEC_LOG(level, fmt, ...) \
   do { \
@@ -82,6 +82,10 @@ enum codec_log_level {
 #define ROUND_UP_4(x) ROUND_UP_X(x, 2)
 #define ROUND_UP_8(x) ROUND_UP_X(x, 3)
 #define DIV_ROUND_UP_X(v, x) (((v) + GEN_MASK(x)) >> (x))
+
+//#define ORIG_
+#define DMABUF_STEP1
+//#define DMABUF_STEP2
 
 typedef struct {
   int       fd;

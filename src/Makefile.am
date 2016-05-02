@@ -20,14 +20,18 @@ libgstemul_la_SOURCES = gstmaru.c \
 	gstmaruauddec.c \
 	gstmaruvidenc.c \
 	gstmaruaudenc.c \
-	gstmaruinterface3.c \
+	gstmaruinterface.c \
 	gstmarudevice.c \
 	gstmarumem.c
 
+	gstv4l2allocator.c \
+	gstv4l2bufferpool.c \
+	gstv4l2object.c \
+	gstv4l2_calls.c
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
 libgstemul_la_CFLAGS = $(GST_CFLAGS) -g
-libgstemul_la_LIBADD = $(GST_LIBS) -lgstaudio-1.0 -lgstpbutils-1.0
+libgstemul_la_LIBADD = $(GST_LIBS) -lgstaudio-1.0 -lgstpbutils-1.0 -lgstallocators-1.0 -L$(libdir)/gstreamer-1.0 -lgstvideo4linux2
 libgstemul_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgstemul_la_LIBTOOLFLAGS = --tag=disable-static
 

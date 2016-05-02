@@ -53,6 +53,7 @@ int
 gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 {
   g_mutex_lock (&gst_avcodec_mutex);
+
   if (device_fd == -1) {
     if ((device_fd = open(CODEC_DEV, O_RDWR)) < 0) {
       GST_ERROR ("failed to open codec device.");
@@ -64,8 +65,8 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
     GST_DEBUG ("codec device is already opened");
   }
   dev->fd = device_fd;
-  // g_mutex_unlock (&gst_avcodec_mutex);
-
+//  g_mutex_unlock (&gst_avcodec_mutex);
+#ifdef ORIG_
   // FIXME
   dev->buf_size = CODEC_DEVICE_MEM_SIZE;
   GST_DEBUG ("mmap_size: %d", dev->buf_size);
@@ -90,6 +91,7 @@ gst_maru_codec_device_open (CodecDevice *dev, int media_type)
 
   opened_cnt++;
   GST_DEBUG ("open count: %d", opened_cnt);
+#endif
   g_mutex_unlock (&gst_avcodec_mutex);
 
   return 0;
