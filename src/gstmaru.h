@@ -47,6 +47,10 @@
 #include <gst/video/gstvideodecoder.h>
 #include "pixfmt.h"
 
+#include "types-compat.h"
+
+#include <linux/videodev2.h>
+
 GST_DEBUG_CATEGORY_EXTERN (maru_debug);
 #define GST_CAT_DEFAULT maru_debug
 
@@ -134,6 +138,71 @@ typedef struct {
   CodecElement *codec;
   int32_t index;
 } CodecContext;
+
+#if 0
+/**
+ * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
+ *
+ * @index:	id number of the buffer
+ * @type:	enum v4l2_buf_type; buffer type (type == *_MPLANE for
+ *		multiplanar buffers);
+ * @plane:	index of the plane to be exported, 0 for single plane queues
+ * @flags:	flags for newly created file, currently only O_CLOEXEC is
+ *		supported, refer to manual of open syscall for more details
+ * @fd:		file descriptor associated with DMABUF (set by driver)
+ *
+ * Contains data used for exporting a video buffer as DMABUF file descriptor.
+ * The buffer is identified by a 'cookie' returned by VIDIOC_QUERYBUF
+ * (identical to the cookie used to mmap() the buffer to userspace). All
+ * reserved fields must be set to zero. The field reserved0 is expected to
+ * become a structure 'type' allowing an alternative layout of the structure
+ * content. Therefore this field should not be used for any other extensions.
+ */
+struct v4l2_exportbuffer {
+	__u32		type; /* enum v4l2_buf_type */
+	__u32		index;
+	__u32		plane;
+	__u32		flags;
+	__s32		fd;
+	__u32		reserved[11];
+};  
+
+enum v4l2_memory {
+	V4L2_MEMORY_MMAP             = 1,
+	V4L2_MEMORY_USERPTR          = 2,
+	V4L2_MEMORY_OVERLAY          = 3,
+	V4L2_MEMORY_DMABUF           = 4,
+};
+
+enum v4l2_buf_type {
+    V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,
+    V4L2_BUF_TYPE_VIDEO_OUTPUT         = 2,
+    V4L2_BUF_TYPE_VIDEO_OVERLAY        = 3,
+    V4L2_BUF_TYPE_VBI_CAPTURE          = 4,
+    V4L2_BUF_TYPE_VBI_OUTPUT           = 5,
+    V4L2_BUF_TYPE_SLICED_VBI_CAPTURE   = 6,
+    V4L2_BUF_TYPE_SLICED_VBI_OUTPUT    = 7,
+ #if 1
+    /* Experimental */
+   V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,
+ #endif
+    V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
+    V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
+    /* Deprecated, do not use */
+    V4L2_BUF_TYPE_PRIVATE              = 0x80,
+};
+
+struct v4l2_requestbuffers {
+    __u32		count;
+	__u32		type;
+	__u32		memory;
+	__u32		reserved[2];
+};
+
+#define VIDIOC_REQBUFS      _IOWR('V',  8, struct v4l2_requestbuffers)
+#define VIDIOC_EXPBUF       _IOWR('V', 16, struct v4l2_exportbuffer)
+
+#endif
 
 enum CODEC_MEDIA_TYPE {
   AVMEDIA_TYPE_UNKNOWN = -1,

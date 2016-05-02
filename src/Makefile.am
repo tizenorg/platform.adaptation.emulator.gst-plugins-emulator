@@ -22,7 +22,13 @@ libgstemul_la_SOURCES = gstmaru.c \
 	gstmaruaudenc.c \
 	gstmaruinterface3.c \
 	gstmarudevice.c \
-	gstmarumem.c
+	gstmarumem.c 
+
+	gstv4l2object.c \
+	gstv4l2allocator.c \
+	gstv4l2bufferpool.c \
+	gstv4l2_calls.c
+
 
 
 # compiler and linker flags used to compile this plugin, set in configure.ac

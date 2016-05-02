@@ -196,6 +196,8 @@ typedef struct {
                     guint size, GstCaps *caps, GstBuffer **buf);
   int
   (*get_device_version) (int fd);
+  int
+  (*get_dmabuf_fd) (int fd);
   GList *
   (*prepare_elements) (int fd);
   int

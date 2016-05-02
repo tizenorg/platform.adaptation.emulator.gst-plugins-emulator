@@ -38,7 +38,7 @@
 Interface *interface = NULL;
 
 enum IOCTL_CMD {
-  IOCTL_CMD_GET_VERSION,
+  IOCTL_CMD_GET_VERSION = 192, //BASE_VIDIOC_PRIVATE
   IOCTL_CMD_GET_ELEMENTS_SIZE,
   IOCTL_CMD_GET_ELEMENTS,
   IOCTL_CMD_GET_CONTEXT_INDEX,
@@ -56,7 +56,7 @@ typedef struct {
   int32_t  buffer_size;
 } __attribute__((packed)) IOCTL_Data;
 
-#define BRILLCODEC_KEY         'B'
+#define BRILLCODEC_KEY         'V'
 #define IOCTL_RW(CMD)           (_IOWR(BRILLCODEC_KEY, CMD, IOCTL_Data))
 
 #define CODEC_META_DATA_SIZE    256
@@ -642,6 +642,24 @@ flush_buffers (CodecContext *ctx, CodecDevice *dev)
 }
 
 static int
+get_dmabuf_fd (int fd)
+{
+  struct v4l2_requestbuffers reqbuf;
+  memset(&reqbuf, 0, sizeof(reqbuf));
+  reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  reqbuf.memory = V4L2_MEMORY_DMABUF;
+  reqbuf.count = 1;
+
+  if (ioctl (fd, VIDIOC_REQBUFS, &reqbuf) == -1 ) {
+    if (errno == EINVAL)
+		perror("DMABUF streaming is not supported");
+	else
+		perror("VIDIOC_REQUEST");
+  }
+  return 1;
+}
+
+static int
 get_device_version (int fd)
 {
   uint32_t device_version;
@@ -663,15 +681,19 @@ prepare_elements (int fd)
   GList *elements = NULL;
   CodecElement *elem;
 
-  ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS_SIZE), &size);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS_SIZE, &size);
+  //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS_SIZE), &size);
   if (ret < 0) {
     GST_ERROR ("get_elements_size failed");
     return NULL;
   }
 
   elem = g_malloc(size);
+  //FIXME
+  //An elem variable should be deallocated, will be fixed.
 
-  ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS), elem);
+  ret = ioctl (fd, IOCTL_CMD_GET_ELEMENTS, elem);
+  //ret = ioctl (fd, IOCTL_RW(IOCTL_CMD_GET_ELEMENTS), elem);
   if (ret < 0) {
     GST_ERROR ("get_elements failed");
     g_free (elem);
@@ -683,7 +705,6 @@ prepare_elements (int fd)
     elements = g_list_append (elements, &elem[i]);
   }
 
-  g_free (elem);
   return elements;
 }
 
@@ -714,4 +735,5 @@ Interface *interface_version_3 = &(Interface) {
   .get_device_version = get_device_version,
   .prepare_elements = prepare_elements,
   .get_profile_status = get_profile_status,
+  .get_dmabuf_fd = get_dmabuf_fd
 };
