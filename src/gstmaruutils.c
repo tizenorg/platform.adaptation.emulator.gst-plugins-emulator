@@ -1518,7 +1518,7 @@ void
 gst_maru_audioinfo_to_context (GstAudioInfo *info, CodecContext *context)
 {
   const CodecElement *codec = context->codec;
-  enum SampleFormat smpl_fmts[4];
+  enum SampleFormat smpl_fmts[4] = { -1, };
   enum SampleFormat smpl_fmt = -1;
   int i;
 
