@@ -160,7 +160,7 @@ GST_PLUGIN_DEFINE (
   tizen-emul,
   "Codecs for Tizen Emulator",
   plugin_init,
-  "1.2.2",
+  "1.2.3",
   "LGPL",
   "gst-plugins-emulator",
   "http://www.tizen.org"
